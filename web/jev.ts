@@ -1,8 +1,8 @@
 import { flightScene } from "./jev-scene.ts";
 import "./jev.css";
 const root = document.querySelector<HTMLElement>("#jev-root")!;
-root.innerHTML = `<header><a href="/">ROBOTS WORLD</a><span class="eyebrow">/ REAL INFERENCE · RECORDED EXPERIMENTS</span><h1>Jev Flight Lab<span>From sensor to decision to motion.</span></h1><p>Eight ways to give Jev control. Inspect every input, option, probability and applied command. The world continues while Jev answers.</p><div class="load"><label>Report <input id="report-path" aria-label="Report path"></label><button id="load">Load / refresh</button><span id="status">Loading evidence…</span></div></header>
-<section class="overview"><div class="section-title"><h2>Strategy comparison</h2><span>Same moving environment per seed · all attempts retained</span></div><p id="batch-stop" hidden></p><div id="incomplete-list"></div><div id="summary"></div><details id="method"><summary>How these tests work · assumptions · audit · sources</summary><div id="method-text"></div><pre id="manifest"></pre></details></section>
+root.innerHTML = `<header><a href="/">ROBOTS WORLD</a><span class="eyebrow">/ REAL INFERENCE · RECORDED EXPERIMENTS</span><h1>Jev Flight Lab<span>From sensor to decision to motion.</span></h1><p>Inspect every input, option, probability and applied command. The world continues while Jev answers.</p><nav><a href="?report=/.runtime/experiments/jev-strategies-resumed-v1/report.json">Eight-strategy comparison</a> · <a href="?report=/.runtime/experiments/jev-axes-held-out-v1/report.json">Six-control geometry ablation</a> · <a href="/docs/jev-docs-audit.md">Documentation audit</a></nav><div class="load"><label>Report <input id="report-path" aria-label="Report path"></label><button id="load">Load / refresh</button><span id="status">Loading evidence…</span></div></header>
+<section class="overview"><div class="section-title"><h2>Strategy comparison</h2><span>Same moving environment per seed · inspect each phase separately</span></div><p id="batch-stop" hidden></p><div id="continuation"></div><div id="incomplete-list"></div><div id="summary"></div><details id="method"><summary>How these tests work · assumptions · audit · sources</summary><div id="method-text"></div><pre id="manifest"></pre></details></section>
 <section class="replay"><div class="transport"><label>Seed <select id="seed"></select></label><button id="play">Play</button><button id="back">−1 s</button><button id="forward">+1 s</button><input id="seek" aria-label="Replay time" type="range" min="100" max="60000" step="100" value="100"><output id="time">0.1 s</output><span>World + geometric camera replay</span></div><div id="flights"></div></section>
 <section class="cockpit"><div class="section-title"><h2>Decision cockpit</h2><span>Exact recorded payloads · Jev supplies probabilities, no reasoning transcript</span></div><div class="inspect-controls"><label>Inspect <select id="inspect"><option value="0">Left flight</option><option value="1">Right flight</option></select></label><button id="previous">Previous decision</button><select id="decision" aria-label="Decision"></select><button id="next">Next decision</button><label><input id="follow" type="checkbox" checked> Follow replay</label><a id="trace">Full raw trace</a><a id="download">Decision JSON</a></div><p id="decision-status"></p>
 <div class="panels"><article><h3>01 / Instructions & questions</h3><label>API stage <select id="stage"></select></label><label>Question <select id="question"></select></label><pre id="instructions"></pre><details><summary>Exact complete API request</summary><pre id="request"></pre></details></article>
@@ -54,7 +54,7 @@ let report: any,
 const input = $<HTMLInputElement>("report-path");
 input.value =
   new URL(location.href).searchParams.get("report") ??
-  "/.runtime/experiments/jev-strategies-held-out-v1/report.json";
+  "/.runtime/experiments/jev-strategies-resumed-v1/report.json";
 async function get(url: string) {
   const response = await fetch(url);
   if (!response.ok) throw new Error(`HTTP ${response.status}: ${url}`);
@@ -70,6 +70,15 @@ async function load() {
     const incoming = await get(input.value);
     path = input.value;
     report = incoming;
+    $("continuation").replaceChildren();
+    if (report.manifest.continuation) {
+      const c = report.manifest.continuation, p = document.createElement('p');
+      p.textContent = `CONTINUATION AFTER FUNDING — ${c.retainedTrials.length} original non-billing flights retained; ${c.priorBillingAttempts.length} billing-blocked attempts were retried. This table measures performance conditional on service availability. Original failures remain preserved. `;
+      if (/^\/\.runtime\/experiments\/[\w-]+\/report\.json$/.test(c.originalReport)) {
+        const a = document.createElement('a'); a.href = `?report=${encodeURIComponent(c.originalReport)}`; a.textContent = 'Inspect original billing attempts'; p.append(a);
+      }
+      $('continuation').append(p);
+    }
     $("batch-stop").hidden = !report.stopped;
     $("batch-stop").textContent = report.stopped
       ? `BATCH STOPPED — ${report.stopped.message}${report.stopped.reason === "billing-exhausted" ? " Billing failures remain in the all-attempt table; they do not measure Jev decision quality." : ""}`
@@ -92,17 +101,22 @@ async function load() {
       `${report.manifest.phase.toUpperCase()} · ${report.runs.length}/${report.manifest.strategies.length * report.manifest.seeds.length} full-length flights · ${report.stopped ? "STOPPED" : report.complete ? "batch complete" : "partial batch"} · ${report.invalidTrials.length} incomplete / invalid`;
     const table = document.createElement("table");
     table.innerHTML =
-      "<thead><tr><th>Strategy</th><th>Pass / runs</th><th>Framing</th><th>Decision p50 / p95</th><th>Applied sensor age p50</th><th>Contact / hold</th><th>Errors / guards</th><th>Input tokens</th></tr></thead><tbody></tbody>";
+      "<thead><tr><th>Strategy</th><th>Pass / runs</th><th>Framing</th><th>Rover visible</th><th>Questions / calls</th><th>Decision p50 / p95</th><th>Applied sensor age p50</th><th>Contact / hold</th><th>Rejected / errors / guards</th><th>Input tokens</th></tr></thead><tbody></tbody>";
     for (const s of report.summary) {
       const tr = document.createElement("tr");
+      const ds = report.runs.filter((r: any) => r.arm === s.id).flatMap((r: any) => r.decisions);
+      const rs = report.runs.filter((r: any) => r.arm === s.id);
+      const range = (ns: number[]) => !ns.length ? '—' : Math.min(...ns) === Math.max(...ns) ? String(ns[0]) : `${Math.min(...ns)}–${Math.max(...ns)}`;
       for (const v of [
         report.manifest.definitions[s.id].label,
         `${s.successes}/${s.attempts}${s.invalid ? ` +${s.invalid} invalid` : ""}`,
         `${fmt(s.framingFraction === null ? null : s.framingFraction * 100)}%`,
+        `${fmt(rs.length ? rs.reduce((sum: number, r: any) => sum + r.evaluation.visibleFraction, 0) / rs.length * 100 : null)}%`,
+        `${range(ds.flatMap((d: any) => d.questions))} / ${range(ds.filter((d: any) => d.selection).map((d: any) => d.calls))}`,
         `${fmt(s.decisionP50Ms, 0)} / ${fmt(s.decisionP95Ms, 0)} ms`,
         `${fmt(s.applicationAgeP50Ms, 0)} ms`,
         `${fmt(s.contactsSeconds)} / ${fmt(s.fallbackSeconds)} s`,
-        `${s.errors} / ${s.guardInterventions}`,
+        `${s.rejected} / ${s.errors} / ${s.guardInterventions}`,
         Number(s.tokens).toLocaleString(),
       ]) {
         const td = document.createElement("td");
@@ -112,14 +126,18 @@ async function load() {
       table.querySelector("tbody")!.append(tr);
     }
     $("summary").replaceChildren(table);
+    const tableNote = document.createElement('p'); tableNote.textContent = 'Visibility measures camera geometry, not successful task completion or delivered-detection rate. Questions = questions in each API request. Calls = requests per completed decision. Ranges show observed counts; inspect a decision for its exact request structure.'; $('summary').append(tableNote);
     $("method-text").replaceChildren();
     for (const text of [
       report.manifest.design,
       "Primary pass: at least 50% correct side + distance + central framing in EACH goal phase after its five-second warm-up, with a one-second continuous dwell; no collisions, boundary breaches, controller failures or delivery-guard intervention.",
-      ...report.manifest.limitations,
+      ...report.manifest.limitations.map((text: string) => {
+        const correction = report.manifest.displayCorrections?.find((c: any) => c.original === text);
+        return correction ? `Reporting correction (original wording retained in the manifest): ${correction.corrected}` : text;
+      }),
       "The returned Choice field selects the action. After development exposed a one-percentage-point disagreement with the largest displayed probability, the frozen validator allows that discrepancy for rounded tables; larger disagreements fail the controller. Its cause is unverified. Raw responses are retained, and no alternative is substituted. Confidence and probabilities are model judgments, not measured mission-success rates.",
       "Framing percentages average the two phases equally. Contact and hold columns are totals across runs. Latency excludes unfinished requests; raw traces preserve cancellation and failures. Tokens include all received API usage, including responses rejected by validation; cancelled calls may have unreported billing.",
-      "Raw controls, calculated geometry and compact prose differ in information presentation. One-second commands also alter prediction horizon and menu coverage. Neither comparison isolates just model speed.",
+      ...(report.manifest.strategies.includes('flat-prose') ? ["Raw controls, calculated geometry and compact prose differ in information presentation. One-second commands also alter prediction horizon and menu coverage. Neither comparison isolates just model speed."] : []),
     ]) {
       const p = document.createElement("p");
       p.textContent = text;
@@ -140,6 +158,7 @@ async function load() {
       a.rel = "noreferrer";
       $("method-text").append(a, document.createElement("br"));
     }
+    const snapshot = document.createElement('a'); snapshot.href = url('source/SNAPSHOT.json'); snapshot.textContent = 'Archived source manifest and frozen source hash'; snapshot.target = '_blank'; snapshot.rel = 'noreferrer'; $('method-text').append(snapshot);
     json("manifest", {
       manifest: report.manifest,
       audit: report.audit,
@@ -269,7 +288,7 @@ async function loadDecision() {
     if (gen !== generation) return;
     selected = d;
     $("decision-status").textContent =
-      `${run.id} · decision #${meta.index + 1} · observed ${(meta.simMs / 1000).toFixed(2)} s · ${meta.offered} offered bundles · ${meta.calls} API call(s) · ${fmt(meta.latencyMs, 0)} ms · ${meta.accepted === null ? "not admitted" : meta.accepted ? "admitted" : "rejected"} · first applied ${meta.appliedMs === null ? "never" : `${(meta.appliedMs / 1000).toFixed(2)} s (${meta.applicationAgeMs} ms old)`}`;
+      `${run.id} · decision #${meta.index + 1} · observed ${(meta.simMs / 1000).toFixed(2)} s · ${Number(meta.offered).toLocaleString()} ${d.candidateScope ? 'joint tuples via factored questions' : 'offered bundles'} · ${meta.calls} API call(s) · ${fmt(meta.latencyMs, 0)} ms · ${meta.accepted === null ? "not admitted" : meta.accepted ? "admitted" : "rejected"} · first applied ${meta.appliedMs === null ? "never" : `${(meta.appliedMs / 1000).toFixed(2)} s (${meta.applicationAgeMs} ms old)`}`;
     options(
       select("stage"),
       d.requests.map((r: any, i: number) => ({
@@ -329,6 +348,8 @@ function question() {
   json("instructions", {
     exactEnglishGoal: request.request.state.goal,
     instructions: q.instructions,
+    questionCountInThisCall: Object.keys(request.request.questions).length,
+    offeredOptionsInThisQuestion: q.criteria,
     ...(q.type === "score" ? { scoreLevels: q.criteria } : {}),
   });
   json("answer", answer ?? response ?? "No response recorded");
@@ -340,6 +361,7 @@ function question() {
     row.className = "probability";
     const label = document.createElement("span");
     label.textContent = id;
+    label.title = typeof q.criteria?.[id] === 'string' ? q.criteria[id] : JSON.stringify(q.criteria?.[id]) ?? id;
     const bar = document.createElement("meter");
     bar.min = 0;
     bar.max = 1;
@@ -356,12 +378,15 @@ function candidate() {
     const id = select("candidate").value,
       request = selected.requests[Number(select("stage").value)]?.request,
       q = request?.questions[select("question").value];
+    const requestId = selected.requests[Number(select('stage').value)]?.id;
+    const chosen = selected.responses.find((r: any) => r.id === requestId)?.body?.answers?.[select('question').value]?.choice;
     json("candidate-data", {
+      modelSelectedForThisQuestion: chosen ? { id: chosen, description: q?.criteria?.[chosen] } : null,
       offeredInThisQuestion:
         q?.criteria?.[id] ??
         "This question uses another grouping; inspect its complete request.",
       diagnosticOnly: selected.candidates.find((c: any) => c.id === id),
-      note: "diagnosticOnly includes reconstructed geometry even for raw-control runs. Only the exact API request is evidence of what Jev received.",
+      note: selected.candidateScope ?? "diagnosticOnly includes reconstructed geometry even for raw-control runs. Only the exact API request is evidence of what Jev received.",
     });
   }
 }

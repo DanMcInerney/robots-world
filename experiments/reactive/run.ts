@@ -48,7 +48,7 @@ async function prepareBrief(directory: string) {
   } finally { await native?.close(); trace.close(); }
 }
 
-export async function trial(options: { arm: string; seed: number; seconds: number; directory: string; key?: string; phase: string; brief?: string; config?: ExperimentConfig; strategy?: Strategy; maxDecisions?: number; controller?: Controller; controllerSource?: { files: string[] }; fixtureDecision?: (menu: Menu, signal: AbortSignal) => Promise<Answer>; realtime?: boolean }) {
+export async function trial(options: { arm: string; seed: number; seconds: number; directory: string; key?: string; phase: string; brief?: string; config?: ExperimentConfig; strategy?: Strategy; maxDecisions?: number; controller?: Controller; controllerSource?: { files: string[] }; connectControllerTrace?: (emit: Emit) => void; fixtureDecision?: (menu: Menu, signal: AbortSignal) => Promise<Answer>; realtime?: boolean }) {
   if (!/^[\w-]+$/.test(options.arm) || !Number.isInteger(options.seed) || !Number.isFinite(options.seconds) || options.seconds < 1 || options.seconds > 90) throw new Error('Invalid trial identity/duration');
   if ((options.fixtureDecision || options.realtime === false) && options.phase !== 'fixture') throw new Error('Synthetic controls or accelerated time require fixture phase');
   if (options.controller && options.phase !== 'fixture' && !options.controllerSource?.files.length) throw new Error('Controller source files required for provenance');
@@ -64,6 +64,7 @@ export async function trial(options: { arm: string; seed: number; seconds: numbe
   let advice = options.brief, repairStarted = false, nextAt = 0, maxLagMs = 0, setupStart = performance.now();
   const stats = { started: 0, completed: 0, admitted: 0, rejected: 0, errors: 0, cancelled: 0, repairsStarted: 0, repairsCompleted: 0, repairsInstalled: 0, repairsStale: 0, cancelledRepairs: 0, latencyMs: [] as number[], sourceAgeMs: [] as number[], repairLatencyMs: [] as number[], usage: [] as unknown[], cumulativeCostUsd: null as number | null, selectedIds: [] as string[], menuCounts: [] as number[] };
   try {
+    options.connectControllerTrace?.(trace.emit);
     world = await ReactiveWorld.create(seed, trace.emit, seconds * 500, config); const runtime = world;
     if (!options.controller && !options.fixtureDecision) {
       try {

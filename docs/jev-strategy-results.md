@@ -1,5 +1,7 @@
 # Jev strategy results — interrupted by exhausted API credits
 
+Historical interruption report. See the [completed matrix and separate factored-control pilot](jev-expanded-results.md) for the continuation after funding. The original evidence below is preserved.
+
 Recorded 18 September 2026. This is an **incomplete exploratory comparison**, not the planned four-seed ranking.
 
 Open [Jev Flight Lab](http://127.0.0.1:8870/jev.html?report=/.runtime/experiments/jev-strategies-held-out-v1/report.json) in a running local Robots World server. Select a seed and two strategies, then select a decision. The cockpit shows the exact English goal, questions, offered choices, model probabilities/scores, original and presented sensors, and command admission/application. Expand a pane for readable raw JSON. Each flight has its own goals and scoring record.
