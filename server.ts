@@ -1,15 +1,15 @@
 import { createServer } from 'node:http';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { randomBytes, timingSafeEqual } from 'node:crypto';
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, stat, writeFile } from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
 import { resolve } from 'node:path';
 import { World } from './src/world.ts';
-import { defaultRegistry } from './src/defaults.ts';
 import { Journal } from './src/recorder.ts';
 import type { Command, Diagnostic, RobotPort } from './src/contracts.ts';
-import { scenarios, scenario } from './scenarios/index.ts';
+import { createFixture, fixtureDescriptions } from './scenarios/fixtures.ts';
 import { DemoPolicy } from './experiments/policy.ts';
+import { createTrackingBaseline } from './experiments/compare.ts';
 
 type HostOptions = { port?: number; scenario?: string; physics?: string; web?: boolean; realtime?: boolean; demo?: boolean; saveSession?: boolean };
 const secret = () => randomBytes(24).toString('hex');
@@ -31,13 +31,14 @@ function respond(response: ServerResponse, status: number, value: unknown) {
 export async function createHost(options: HostOptions = {}) {
   const adminToken = secret();
   const viewerToken = secret();
-  const journal = new Journal(4000);
-  let world = await World.create(scenario(options.scenario ?? 'mixed'), defaultRegistry(), options.physics ?? 'rapier', journal);
+  let journal = new Journal(4000);
+  let fixture = createFixture(options.scenario ?? 'mixed');
+  let world = await World.create(fixture.scenario, fixture.registry, options.physics ?? 'rapier', journal);
   let paused = false, demo = false, closed = false;
   let protocolSequence = 0;
   const leases = new Map<string, { robotId: string; port: RobotPort }>();
   const manuals = new Map<string, RobotPort>();
-  let policies: DemoPolicy[] = [];
+  let policies: { tick(): Promise<void>; close?(): void }[] = [];
   let demoPorts: RobotPort[] = [];
   let work: Promise<unknown> = Promise.resolve();
   let queued = 0, generation = 0;
@@ -48,7 +49,7 @@ export async function createHost(options: HostOptions = {}) {
     const result = work.then(() => { if (closed || admitted !== generation) throw new Error('Operation invalidated by Stop'); return task(); }).finally(() => { queued--; });
     work = result.catch(() => {}); return result;
   };
-  async function stopDemo() { demo = false; policies = []; for (const port of demoPorts) await port.close(); demoPorts = []; }
+  async function stopDemo() { demo = false; for (const policy of policies) policy.close?.(); policies = []; for (const port of demoPorts) await port.close(); demoPorts = []; }
   async function setDemo(enabled: boolean) {
     const admitted = generation;
     await stopDemo();
@@ -57,12 +58,17 @@ export async function createHost(options: HostOptions = {}) {
     // Explicit admin action takes ownership back from all current controllers.
     world.stop(); leases.clear(); manuals.clear();
     demoPorts = world.robotIds.map(id => world.claim(id, 'scripted demo'));
-    policies = demoPorts.map((port, index) => new DemoPolicy(port, { index, swarm: world.scenario.id === 'swarm' }));
+    policies = demoPorts.map((port, index) => {
+      if(world.scenario.id !== 'tracking') return new DemoPolicy(port, { index, swarm: world.scenario.id === 'swarm' });
+      const local = createTrackingBaseline(port,(kind,data)=>journal.record({simMs:world.simMs,robotId:port.robotId,channel:'control',kind,data}));
+      return {tick:()=>local.tick(world.simMs),close:()=>local.close()};
+    });
     demo = true;
   }
   async function advance(ticks: number) {
     for (let n = 0; n < ticks; n++) {
       for (const policy of policies) await policy.tick();
+      fixture.beforeStep?.(world);
       await world.advance();
     }
   }
@@ -95,7 +101,8 @@ export async function createHost(options: HostOptions = {}) {
         if (!lease || lease.robotId !== decodeURIComponent(match[1]!)) { respond(response, 403, { error: 'Invalid robot-scoped lease' }); return; }
         const body = await jsonBody(request);
         const exchange = ++protocolSequence;
-        const trace = (direction: 'rx' | 'tx', payload: unknown) => journal.record({ simMs: world.simMs, robotId: lease.robotId, channel: 'protocol', kind: `http.${direction}`, data: { exchange, transport: 'HTTP/JSON', operation: match[2], payload } });
+        const exchangeWorld = world, exchangeJournal = journal;
+        const trace = (direction: 'rx' | 'tx', payload: unknown) => exchangeJournal.record({ simMs: exchangeWorld.simMs, robotId: lease.robotId, channel: 'protocol', kind: `http.${direction}`, data: { exchange, transport: 'HTTP/JSON', operation: match[2], payload } });
         trace('rx', body);
         // Revocation never waits behind a physics step, model call or queued command.
         if (match[2] === 'stop' || match[2] === 'close') {
@@ -118,7 +125,33 @@ export async function createHost(options: HostOptions = {}) {
       }
       const supplied = String(request.headers['x-world-admin'] ?? request.headers.authorization?.replace(/^Bearer /, '') ?? '');
       if (!equal(supplied, adminToken)) { respond(response, 403, { error: 'Admin token required' }); return; }
-      if (request.method === 'GET' && url.pathname === '/api/scenarios') { respond(response, 200, Object.entries(scenarios).map(([id, value]) => ({ id, label: value.label, description: value.description }))); return; }
+      const traceMatch = /^\/api\/comparison\/trace\/([a-z0-9-]+)$/.exec(url.pathname);
+      if (request.method === 'GET' && traceMatch) {
+        const directory = resolve(import.meta.dirname, '.runtime/experiments');
+        const manifestPath = resolve(directory, 'comparison.json');
+        if ((await stat(manifestPath)).size > 64*1024*1024) throw new Error('Comparison manifest too large');
+        const manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
+        const trial = manifest.trials?.find((t: { id: string }) => t.id === traceMatch[1]);
+        if (!trial || typeof trial.traceArtifact !== 'string' || !/^traces\/[a-f0-9-]+\/[a-z0-9-]+\.trace\.json$/.test(trial.traceArtifact)) throw new Error('No full trace for that trial');
+        const path = resolve(directory, trial.traceArtifact);
+        if ((await stat(path)).size > 32*1024*1024) throw new Error('Trial trace exceeds 32 MiB viewer limit');
+        respond(response, 200, JSON.parse(await readFile(path, 'utf8'))); return;
+      }
+      if (request.method === 'GET' && url.pathname === '/api/comparison') {
+        // Fixed local artifact only: no path parameter or controller access to evaluator truth.
+        const path = resolve(import.meta.dirname, '.runtime/experiments/comparison.json');
+        try {
+          if ((await stat(path)).size > 64*1024*1024) throw new Error('Comparison exceeds the 64 MiB viewer limit; select fewer seeds or shorter trials');
+          const report = JSON.parse(await readFile(path, 'utf8'));
+          if (report.kind !== 'controller-comparison' || report.schemaVersion !== 1 || !Array.isArray(report.trials)) throw new Error('Unsupported comparison artifact');
+          respond(response, 200, report);
+        } catch (error) {
+          if ((error as NodeJS.ErrnoException).code === 'ENOENT') respond(response, 200, null);
+          else throw error;
+        }
+        return;
+      }
+      if (request.method === 'GET' && url.pathname === '/api/scenarios') { respond(response, 200, Object.entries(fixtureDescriptions).map(([id, value]) => ({ id, label: value.label, description: value.description }))); return; }
       if (request.method === 'GET' && url.pathname === '/api/inspect') {
         const after = Number(url.searchParams.get('after') ?? 0);
         respond(response, 200, await serial(async () => ({ ...world.inspect(Number.isFinite(after) ? after : 0), paused, demo, network: world.radio.stats() }))); return;
@@ -148,11 +181,13 @@ export async function createHost(options: HostOptions = {}) {
           case '/api/reset': {
             const admitted = generation;
             // Create first: an invalid configuration does not destroy the current run.
-            const next = await World.create(scenario(body.scenario ?? world.scenario.id), defaultRegistry(), body.physics ?? world.physics.id, journal);
+            const nextFixture = createFixture(body.scenario ?? world.scenario.id);
+            const nextJournal = new Journal(4000);
+            const next = await World.create(nextFixture.scenario, nextFixture.registry, body.physics ?? world.physics.id, nextJournal);
             if (admitted !== generation) { next.close(); throw new Error('Reset invalidated by Stop'); }
             await stopDemo();
             if (admitted !== generation) { next.close(); throw new Error('Reset invalidated by Stop'); }
-            world.close(); world = next; leases.clear(); manuals.clear(); paused = false;
+            world.close(); world = next; fixture = nextFixture; journal = nextJournal; leases.clear(); manuals.clear(); paused = false;
             return { ok: true, epoch: world.epoch };
           }
           case '/api/pause': if (typeof body.paused !== 'boolean') throw new Error('paused must be boolean'); paused = body.paused; return { ok: true };

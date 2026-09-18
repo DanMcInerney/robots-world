@@ -20,6 +20,25 @@ async function claim(host: Host) {
   return { port: new HttpRobotPort({ url: host.url, robotId, token }), token };
 }
 
+test('host mounts custom tracking sensors and dynamics without exposing evaluator truth to a controller',async()=>{
+  const host=await createHost({...hostOptions,scenario:'tracking',physics:'rapier'});
+  try {
+    const claimed=await admin(host,'claim',{robotIds:['drone'],owner:'tracking HTTP fixture'});
+    const port=new HttpRobotPort({url:host.url,...claimed.data.ports[0]});
+    const before=await port.observe();
+    await admin(host,'step',{ticks:20});
+    const after=await port.observe();
+    assert.equal(after.simMs,400);
+    assert.ok(after.sensors.target.sequence>before.sensors.target.sequence);
+    assert.notDeepEqual(after.sensors.target.value,before.sensors.target.value);
+    assert.equal(Object.hasOwn(after,'bodies'),false);
+    await port.close();
+    await admin(host,'demo',{enabled:true});
+    await admin(host,'step',{ticks:100});
+    assert.ok(host.world.physics.body('drone/base').pose.position.x>.1,'same code baseline tracks through scoped sensors');
+  } finally {await host.close();}
+});
+
 test('HTTP robot port runs a controller without spectator state and enforces token/host/origin boundaries', async () => {
   const host = await createHost(hostOptions);
   try {
@@ -39,6 +58,8 @@ test('HTTP robot port runs a controller without spectator state and enforces tok
     assert.equal((await direct('/api/robots/other-robot/observe')).status, 403);
     assert.equal((await direct('/api/reset')).status, 403);
     assert.equal((await fetch(`${host.url}/api/inspect`, { headers: { authorization: `Bearer ${token}` } })).status, 403);
+    assert.equal((await fetch(`${host.url}/api/comparison`, { headers: { authorization: `Bearer ${token}` } })).status, 403);
+    assert.equal((await fetch(`${host.url}/api/comparison/trace/code-local-seed-11`, { headers: { authorization: `Bearer ${token}` } })).status, 403);
     assert.equal((await direct('/api/robots/fixture-1/observe', { origin: 'https://unrelated.example' })).status, 403);
     assert.equal((await direct('/api/robots/fixture-1/observe', { 'sec-fetch-site': 'cross-site' })).status, 403);
     const invalidHostStatus = await new Promise<number>((resolve, reject) => {
@@ -74,6 +95,7 @@ test('HTTP stop invalidates late commands, and reset invalidates every prior rem
     await assert.rejects(first.port.command({ id: 'very-late', action: 'hold', args: {} }), /revoked|lease/i);
     const reset = await admin(host, 'reset', { scenario: 'portable', physics: 'kinematic' });
     assert.equal(reset.response.status, 200); assert.notEqual(reset.data.epoch, epoch);
+    assert.ok(!JSON.stringify(host.world.inspect().diagnostics).includes('after-takeover'),'new episode logs cannot masquerade as actions from the previous world');
     await assert.rejects(second.port.observe(), /lease/i);
     await assert.rejects(second.port.command({ id: 'reset-late', action: 'hold', args: {} }), /lease/i);
     const third = await claim(host); assert.equal((await third.port.observe()).epoch, reset.data.epoch);

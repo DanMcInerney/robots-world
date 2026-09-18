@@ -13,6 +13,8 @@ Recorded on 2026-09-17: clean `npm ci` completed with zero audit findings; all 6
 
 Tests exercise robot model motion and articulation, supported physics features, mounted sensor frames and independent timing, radio impairments, command deduplication and leases, stale observation rejection, stop/watchdogs, raw MAVLink frames, controller tool scoping and optional inference adapters with fixtures. The headless runner produces configuration and trace artifacts for bounded scenarios. The browser is a real Three.js inspector of host state.
 
+Subsequent qualification on the same date: the expanded 109-test suite passed with the optional real Nervelet Bridge integrations enabled. A separately authorized [live Jev batch](jev-live-results.md) exercised actual TypeSafe responses through the tracking comparison, with three paired seeds and one impaired-sensor trial. Those results do not qualify native Codex/Claude sessions or the full generic controller/Nervelet/Jev composition.
+
 These tests do not establish flight stability, tire dynamics, walking balance, real sensor calibration, Wi-Fi behavior, native model latency or safe real-world autonomy. A real native Codex/Claude/Jev run requires opt-in credentials and separately recorded evidence. The native drivers preserve the selected harness and model; availability is checked at launch.
 
 Before claiming hardware transfer, run the same port conformance tests against the device adapter, verify frame/unit mapping and sequence handling, test communication interruption and watchdog behavior, calibrate model and sensors against measured data, and record constrained hardware trials. A realistic message format is useful but not sufficient evidence of physical equivalence.

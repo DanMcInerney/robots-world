@@ -7,7 +7,7 @@ import type { ControllerLog } from '../controllers/tools.ts';
 
 /** Optional integration: delegate all native lifecycle and continuation to the selected Nervelet installation. */
 export async function runNervelet(ports: readonly RobotPort[], options: {
-  module: string; command: string; cwd: string; goal: string; maxWallMs?: number; maxCalls?: number; log?: ControllerLog;
+  module: string; command: string; cwd: string; goal: string; maxWallMs?: number; commandValidForMs?: number; maxCalls?: number; log?: ControllerLog;
 }, signal?: AbortSignal): Promise<void> {
   const specifier = options.module.startsWith('file:') ? options.module : pathToFileURL(resolve(options.module)).href;
   const library = await import(specifier);
@@ -23,7 +23,7 @@ export async function runNervelet(ports: readonly RobotPort[], options: {
       let bridge: any, client: any, unsubscribe: (() => void) | undefined;
       try {
         control.signal.throwIfAborted();
-        bridge = await createNerveletBridge(port, library, options.goal);
+        bridge = await createNerveletBridge(port, library, options.goal, { commandValidForMs: options.commandValidForMs });
         client = await driverLibrary.connectAppServer({ command: options.command, cwd: options.cwd });
         await verifyCodexModel(client, codexPreset.model, codexPreset.effort);
         unsubscribe = client.subscribe((event: { method: string }) => { if (event.method !== 'item/reasoning/textDelta') options.log?.('nervelet_native_event', { robotId: port.robotId, event }); });

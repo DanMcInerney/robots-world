@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { Ajv } from 'ajv';
 import type { Command, Controller, Json, Observation, RobotDescription, Vec3 } from '../src/contracts.ts';
 
@@ -9,6 +9,7 @@ export interface Candidate {
   command: Pick<Command, 'action' | 'args'> | null;
 }
 export interface ChoiceRequest {
+  decisionId?: string;
   observation: Observation;
   candidates: readonly Pick<Candidate, 'id' | 'description'>[];
   instructions: string;
@@ -19,13 +20,17 @@ export interface ChoiceAnswer {
   probabilities: Record<string, number>;
   model?: string;
   inputTokens?: number;
+  outputTokens?: number;
+  requestedModel?: string;
 }
-export type ChoiceJudge = (request: ChoiceRequest, signal: AbortSignal) => Promise<ChoiceAnswer>;
+export type ChoiceJudge = ((request: ChoiceRequest, signal: AbortSignal) => Promise<ChoiceAnswer>) & { readonly requestedModel?: string };
 export interface ChoiceOptions {
   judge: ChoiceJudge;
   candidates(observation: Observation, description: RobotDescription): Candidate[];
   requiredSensors?: string[] | ((description: RobotDescription) => string[]);
   instructions?: string;
+  /** Trace metadata for an injected judge; the HTTP judge supplies its own value. */
+  model?: string;
   deadlineMs?: number;
   intervalMs?: number;
   maxObservationAgeMs?: number;
@@ -58,7 +63,8 @@ function fresh(observation: Observation, sensors: readonly string[], maxAgeMs: n
     return sample?.valid && age >= 0 && age <= maxAgeMs;
   });
 }
-function validAnswer(answer: ChoiceAnswer, candidates: readonly Candidate[]): boolean {
+function validAnswer(answer: ChoiceAnswer | null | undefined, candidates: readonly Candidate[]): boolean {
+  if (!answer || !answer.probabilities || typeof answer.probabilities !== 'object' || Array.isArray(answer.probabilities)) return false;
   const ids = candidates.map(candidate => candidate.id);
   const values = Object.values(answer.probabilities ?? {});
   return ids.includes(answer.choice) && Number.isFinite(answer.confidence) && answer.confidence >= 0 && answer.confidence <= 1
@@ -66,6 +72,57 @@ function validAnswer(answer: ChoiceAnswer, candidates: readonly Candidate[]): bo
     && ids.every(id => Object.hasOwn(answer.probabilities, id))
     && values.every(value => Number.isFinite(value) && value >= 0 && value <= 1)
     && Math.abs(values.reduce((sum, value) => sum + value, 0) - 1) < 0.001;
+}
+
+class JevRequestError extends Error {
+  readonly code: string;
+  readonly status?: number;
+  constructor(code: string, message: string, status?: number) { super(message); this.name = 'JevRequestError'; this.code = code; this.status = status; }
+}
+/** Never serialize arbitrary thrown messages, response headers, or an SDK's request object. */
+function errorTrace(error: unknown): { code: string; status?: number } {
+  if (error instanceof JevRequestError) return { code: error.code, ...(error.status === undefined ? {} : { status: error.status }) };
+  return { code: error instanceof Error && ['AbortError', 'TimeoutError'].includes(error.name) ? error.name : 'request-error' };
+}
+function answerTrace(answer: ChoiceAnswer | null | undefined): Record<string, unknown> {
+  if (!answer || typeof answer !== 'object') return { malformed: true };
+  // Deliberately whitelist provider fields; extra SDK fields can contain credentials or reasoning.
+  return { choice: answer.choice, confidence: answer.confidence, probabilities: answer.probabilities,
+    model: answer.model, requestedModel: answer.requestedModel, inputTokens: answer.inputTokens, outputTokens: answer.outputTokens };
+}
+function observationRef(observation: Observation) {
+  return { epoch: observation.epoch, observation: observation.sequence, observedSimMs: observation.simMs, deliveredWallMs: observation.wallMs,
+    sensorTimes: Object.fromEntries(Object.entries(observation.sensors).map(([id, sample]) => [id, { sequence: sample.sequence, acquiredSimMs: sample.acquiredSimMs, receivedSimMs: sample.receivedSimMs, valid: sample.valid }])) };
+}
+const MAX_TRACE_BYTES = 65536;
+/** Keep ordinary records readable and larger snapshots losslessly transportable through the cockpit. */
+function trace(record: ChoiceOptions['record'], kind: string, data: Record<string, unknown>): void {
+  if (!record) return;
+  const encoded = JSON.stringify(data, (key, value) => {
+    if (/^(authorization|api[_-]?key|access[_-]?token|refresh[_-]?token|password|secret|credentials?)$/i.test(key)) return '[redacted]';
+    if (typeof value === 'string') return value.replace(/\bBearer\s+[^\s"']+/gi, 'Bearer [redacted]');
+    return value;
+  });
+  const bytes = Buffer.byteLength(encoded);
+  if (bytes <= 8000) { record(kind, JSON.parse(encoded)); return; }
+  const hash = createHash('sha256').update(encoded).digest('hex');
+  if (bytes > MAX_TRACE_BYTES) {
+    record(kind, { runId: data.runId, robotId: data.robotId, decisionId: data.decisionId, recordedWallMs: data.recordedWallMs,
+      truncated: true, originalBytes: bytes, sha256: hash, reason: 'trace-record-limit' });
+    return;
+  }
+  // Split on code points and account for JSON escaping, so each part fits the log transport.
+  const parts: string[] = []; let part = '', partBytes = 2;
+  for (const character of encoded) {
+    const characterBytes = Buffer.byteLength(JSON.stringify(character)) - 2;
+    if (partBytes + characterBytes > 6000) { parts.push(part); part = ''; partBytes = 2; }
+    part += character; partBytes += characterBytes;
+  }
+  if (part) parts.push(part);
+  for (const [partIndex, json] of parts.entries()) record(`${kind}.part`, {
+    runId: data.runId, robotId: data.robotId, decisionId: data.decisionId, recordedWallMs: data.recordedWallMs,
+    encoding: 'json', partIndex, partCount: parts.length, originalBytes: bytes, sha256: hash, json,
+  });
 }
 
 /** One in-flight judgement per robot; physics and acquisition stay in the host. */
@@ -88,19 +145,57 @@ export function createChoiceController(options: ChoiceOptions): Controller {
     try { await Promise.all(ports.map(async port => {
       let pending: Promise<unknown> | undefined;
       let callAbort: AbortController | undefined;
-      let iteration = 0;
-      const emit = (kind: string, data: Record<string, unknown>) => options.record?.(kind, { robotId: port.robotId, ...data });
+      let iteration = 0, decisionSequence = 0, acknowledged = 0, eventEpoch = '', pendingDecisionId = '';
+      const commandDecisions = new Map<string, string>(), jobDecisions = new Map<string, string>();
+      const remember = (map: Map<string, string>, key: string, value: string) => { map.set(key, value); if (map.size > 512) map.delete(map.keys().next().value!); };
+      const emit = (kind: string, data: Record<string, unknown>) => trace(options.record, kind, { runId, robotId: port.robotId, recordedWallMs: Date.now(), ...data });
+      const read = async (decisionId: string, phase: string): Promise<Observation> => {
+        const observation = await port.observe();
+        if (observation.epoch !== eventEpoch) { eventEpoch = observation.epoch; acknowledged = 0; }
+        const events = observation.events.filter(event => event.id > acknowledged).sort((a, b) => a.id - b.id);
+        for (const event of events) {
+          const data = object(event.data);
+          const origin = (typeof data.commandId === 'string' && commandDecisions.get(data.commandId))
+            || (typeof data.jobId === 'string' && jobDecisions.get(data.jobId));
+          emit('jev.execution-event', { decisionId: origin || decisionId, observedByDecisionId: decisionId, correlated: Boolean(origin), phase,
+            epoch: observation.epoch, observation: observation.sequence, observedSimMs: observation.simMs, deliveredWallMs: observation.wallMs, event });
+        }
+        if (events.length && !runSignal.aborted) {
+          const throughEvent = events.at(-1)!.id;
+          // Radio messages remain pending: this controller has no generic packet-consumption policy.
+          await port.acknowledge(throughEvent, []);
+          acknowledged = throughEvent;
+          emit('jev.events-acknowledged', { decisionId, epoch: observation.epoch, observation: observation.sequence, throughEvent, count: events.length, packetIds: [] });
+        }
+        return observation;
+      };
       try {
         const description = await port.describe();
         const required = typeof options.requiredSensors === 'function' ? options.requiredSensors(description) : options.requiredSensors ?? [];
         const ajv = new Ajv({ strict: false });
         const schemas = new Map(Object.entries(description.commands).map(([name, command]) => [name, ajv.compile(command.schema)]));
-        const hold = async (): Promise<boolean> => {
-          const command = options.holdCommand ?? { action: 'hold', args: {} };
-          if (!schemas.get(command.action)?.(command.args)) { await port.stop(); return false; }
-          const receipt = await port.command({ ...command, id: `jev-${runId}-${port.robotId}-hold-${++iteration}`, validForMs: lifetimeMs });
-          emit('jev.hold', { receipt });
+        const execute = async (command: Command, decisionId: string, source: Observation, choice: string, purpose: string): Promise<boolean> => {
+          const ref = observationRef(source);
+          remember(commandDecisions, command.id, decisionId);
+          emit('jev.command-submitted', { decisionId, ...ref, choice, purpose, command });
+          if (runSignal.aborted) { emit('jev.discarded', { decisionId, ...ref, commandId: command.id, reason: 'cancelled-before-admission' }); return false; }
+          let receipt;
+          try { receipt = await port.command(command); } catch (error) {
+            emit('jev.admission-error', { decisionId, ...ref, commandId: command.id, error: errorTrace(error), effect: 'uncertain-no-replay' });
+            throw error;
+          }
+          if (receipt.jobId) remember(jobDecisions, receipt.jobId, decisionId);
+          emit('jev.admission', { decisionId, ...ref, commandId: command.id, receipt });
+          emit(purpose === 'hold' ? 'jev.hold' : 'jev.command', { decisionId, ...ref, choice, command, receipt });
           return receipt.status !== 'rejected';
+        };
+        const hold = async (decisionId: string, source: Observation): Promise<boolean> => {
+          const command = options.holdCommand ?? { action: 'hold', args: {} };
+          if (!schemas.get(command.action)?.(command.args)) {
+            emit('jev.discarded', { decisionId, ...observationRef(source), reason: 'no-local-hold-command' });
+            await port.stop(); return false;
+          }
+          return execute({ ...command, id: `jev-${runId}-${++iteration}`, validForMs: lifetimeMs }, decisionId, source, 'hold', 'hold');
         };
         const candidates = (observation: Observation): Candidate[] => {
           const items = structuredClone(options.candidates(structuredClone(observation), description));
@@ -113,56 +208,84 @@ export function createChoiceController(options: ChoiceOptions): Controller {
         };
         while (!runSignal.aborted && calls < maxCalls) {
           // A transport that ignores abort may still be working. Never accumulate replacements.
-          if (pending) { await wait(intervalMs, runSignal); continue; }
-          const observation = await port.observe();
+          if (pending) { await read(pendingDecisionId, 'waiting-for-discarded-request'); await wait(intervalMs, runSignal); continue; }
+          const decisionId = `jev-${runId}-${port.robotId}-${++decisionSequence}`;
+          const observation = await read(decisionId, 'input');
           if (runSignal.aborted) break;
+          const ref = observationRef(observation);
+          const instructions = options.instructions ?? 'Choose the offered action that best advances this robot\'s goal. Use hold when evidence is insufficient.';
+          const requestedModel = options.judge.requestedModel ?? options.model;
+          emit('jev.input', { decisionId, ...ref, requestedModel, snapshot: observation, instructions, requiredSensors: required });
           if (!fresh(observation, required, maxAgeMs)) {
-            emit('jev.skipped', { reason: 'stale-or-invalid-sensor', observation: observation.sequence });
-            if (!await hold()) break;
+            emit('jev.skipped', { decisionId, ...ref, reason: 'stale-or-invalid-sensor' });
+            if (!await hold(decisionId, observation)) break;
             await wait(intervalMs, runSignal); continue;
           }
           const offered = candidates(observation);
-          if (!offered.length) { if (!await hold()) break; await wait(intervalMs, runSignal); continue; }
+          emit('jev.candidates', { decisionId, ...ref, candidates: offered });
+          if (!offered.length) { if (!await hold(decisionId, observation)) break; await wait(intervalMs, runSignal); continue; }
           let selected: Candidate | undefined = offered.length === 1 ? offered[0] : undefined;
+          if (selected) emit('jev.decision', { decisionId, ...ref, source: 'local-forced', choice: selected.id });
           if (!selected) {
             calls++;
             callAbort = new AbortController();
             const requestSignal = AbortSignal.any([runSignal, callAbort.signal]);
             const started = performance.now();
-            const response = Promise.resolve().then(() => options.judge({ observation: structuredClone(observation), candidates: offered.map(({ id, description }) => ({ id, description })), instructions: options.instructions ?? 'Choose the offered action that best advances this robot\'s goal. Use hold when evidence is insufficient.' }, requestSignal));
-            const outcome = response.then(answer => ({ kind: 'answer' as const, answer }), () => ({ kind: 'error' as const }));
-            pending = outcome;
-            void outcome.then(() => { pending = undefined; });
+            emit('jev.request', { decisionId, ...ref, requestedModel, deadlineMs, call: calls });
+            const response = Promise.resolve().then(() => { requestSignal.throwIfAborted(); return options.judge({ decisionId, observation: structuredClone(observation), candidates: offered.map(({ id, description }) => ({ id, description })), instructions }, requestSignal); });
+            const outcome = response.then(answer => ({ kind: 'answer' as const, answer, latencyMs: performance.now() - started, finishedWallMs: Date.now() }), error => ({ kind: 'error' as const, error: errorTrace(error), latencyMs: performance.now() - started, finishedWallMs: Date.now() }));
+            let discardedReason: string | undefined;
+            const late = (result: Awaited<typeof outcome>, reason: string) => emit('jev.late-discarded', { decisionId, ...ref, reason,
+              latencyMs: result.latencyMs, finishedWallMs: result.finishedWallMs, ...(result.kind === 'answer' ? { answer: answerTrace(result.answer) } : { error: result.error }) });
+            pending = outcome; pendingDecisionId = decisionId;
+            void outcome.then(result => {
+              pending = undefined;
+              // A late result may arrive after run() releases its lease. It can only emit a diagnostic.
+              if (discardedReason) { try { late(result, discardedReason); } catch { /* A closed diagnostic sink cannot revive the controller. */ } }
+            });
             const timeout = new AbortController();
             const result = await Promise.race([outcome, wait(deadlineMs, AbortSignal.any([runSignal, timeout.signal])).then(() => ({ kind: 'deadline' as const }))]);
             timeout.abort();
             const latencyMs = performance.now() - started;
             callAbort.abort();
-            if (runSignal.aborted) break;
-            if (result.kind !== 'answer' || latencyMs >= deadlineMs) {
-              emit('jev.discarded', { reason: result.kind === 'error' ? 'request-error' : 'deadline', latencyMs, observation: observation.sequence });
-            } else if (!validAnswer(result.answer, offered) || result.answer.confidence < minConfidence) {
-              emit('jev.discarded', { reason: 'invalid-or-low-confidence-choice', latencyMs, observation: observation.sequence });
+            if (runSignal.aborted) {
+              discardedReason = 'cancelled';
+              emit('jev.discarded', { decisionId, ...ref, reason: discardedReason, latencyMs });
+              if (result.kind !== 'deadline') late(result, discardedReason);
+              break;
+            }
+            if (result.kind === 'deadline' || result.latencyMs >= deadlineMs) {
+              discardedReason = 'deadline';
+              emit('jev.discarded', { decisionId, ...ref, reason: discardedReason, latencyMs });
+              if (result.kind !== 'deadline') late(result, discardedReason);
+            } else if (result.kind === 'error') {
+              emit('jev.request-error', { decisionId, ...ref, error: result.error, latencyMs: result.latencyMs, finishedWallMs: result.finishedWallMs });
+              emit('jev.discarded', { decisionId, ...ref, reason: 'request-error', latencyMs });
             } else {
-              selected = offered.find(candidate => candidate.id === result.answer.choice);
-              emit('jev.decision', { ...result.answer, latencyMs, observation: observation.sequence });
+              emit('jev.answer', { decisionId, ...ref, answer: answerTrace(result.answer), latencyMs: result.latencyMs, finishedWallMs: result.finishedWallMs });
+              if (!validAnswer(result.answer, offered) || result.answer.confidence < minConfidence) {
+                emit('jev.discarded', { decisionId, ...ref, reason: 'invalid-or-low-confidence-choice', latencyMs });
+              } else {
+                selected = offered.find(candidate => candidate.id === result.answer.choice);
+                emit('jev.decision', { decisionId, ...ref, ...answerTrace(result.answer), source: 'judge', latencyMs });
+              }
             }
           }
-          if (!selected) { if (!await hold()) break; await wait(intervalMs, runSignal); continue; }
-          const current = await port.observe();
+          if (!selected) { if (!await hold(decisionId, observation)) break; await wait(intervalMs, runSignal); continue; }
+          const current = await read(decisionId, 'revalidation');
           if (runSignal.aborted) break;
+          emit('jev.revalidation', { decisionId, input: ref, current: observationRef(current) });
           // Re-check both observation age and the exact selected command against current legal choices.
           const retained = current.epoch === observation.epoch && current.simMs >= observation.simMs && current.simMs - observation.simMs <= maxAgeMs
             && fresh({ ...observation, simMs: current.simMs }, required, maxAgeMs)
             && fresh(current, required, maxAgeMs) && candidates(current).some(candidate => candidate.id === selected!.id && JSON.stringify(candidate.command) === JSON.stringify(selected!.command));
           if (!retained) {
-            emit('jev.discarded', { reason: 'changed-or-stale-observation', observation: observation.sequence });
-            if (!await hold()) break;
+            emit('jev.discarded', { decisionId, ...ref, reason: 'changed-or-stale-observation' });
+            if (!await hold(decisionId, observation)) break;
           } else if (!selected.command) {
-            if (!await hold()) break;
+            if (!await hold(decisionId, observation)) break;
           } else {
-            const receipt = await port.command({ ...selected.command, id: `jev-${runId}-${port.robotId}-${++iteration}`, validForMs: lifetimeMs, basedOn: { observation: current.sequence, maxAgeMs } });
-            emit('jev.command', { choice: selected.id, receipt });
+            if (!await execute({ ...selected.command, id: `jev-${runId}-${++iteration}`, validForMs: lifetimeMs, basedOn: { observation: current.sequence, maxAgeMs } }, decisionId, observation, selected.id, 'policy')) break;
           }
           await wait(intervalMs, runSignal);
         }
@@ -178,27 +301,30 @@ export function createChoiceController(options: ChoiceOptions): Controller {
 export function createJevJudge(options: { apiKey: string; model?: string; fetch?: typeof fetch }): ChoiceJudge {
   if (!options.apiKey.trim()) throw new Error('TYPESAFE_API_KEY is required');
   const request = options.fetch ?? fetch;
-  return async (input, signal) => {
-    const body = JSON.stringify({ model: options.model ?? 'jev-latest', state: input.observation,
+  const requestedModel = options.model ?? 'jev-latest';
+  const judge: ChoiceJudge = async (input, signal) => {
+    const body = JSON.stringify({ model: requestedModel, state: input.observation,
       questions: { action: { type: 'choice', instructions: input.instructions, criteria: Object.fromEntries(input.candidates.map(candidate => [candidate.id, candidate.description])) } } });
-    if (Buffer.byteLength(body) > 65536) throw new Error('Jev request exceeds 64 KiB');
+    if (Buffer.byteLength(body) > 65536) throw new JevRequestError('request-limit', 'Jev request exceeds 64 KiB');
     const response = await request('https://api.typesafe.ai/v1/systemone', { method: 'POST', headers: { authorization: `Bearer ${options.apiKey}`, 'content-type': 'application/json' }, body, signal, redirect: 'error' });
-    if (!response.ok) { await response.body?.cancel(); throw new Error(`Jev HTTP ${response.status}`); }
+    if (!response.ok) { await response.body?.cancel(); throw new JevRequestError('http-error', `Jev HTTP ${response.status}`, response.status); }
     const reader = response.body?.getReader();
-    if (!reader) throw new Error('Jev returned no response body');
+    if (!reader) throw new JevRequestError('empty-response', 'Jev returned no response body');
     const chunks: Uint8Array[] = []; let size = 0;
     try { for (;;) {
       const next = await reader.read(); if (next.done) break;
-      size += next.value.byteLength; if (size > 65536) throw new Error('Jev response exceeds 64 KiB');
+      size += next.value.byteLength; if (size > 65536) throw new JevRequestError('response-limit', 'Jev response exceeds 64 KiB');
       chunks.push(next.value);
     } } finally { await reader.cancel(); }
     const data = JSON.parse(Buffer.concat(chunks).toString('utf8'));
     const answer = data?.answers?.action;
-    if (answer?.type !== 'choice' || !validAnswer(answer, input.candidates.map(candidate => ({ ...candidate, command: null })))) throw new Error('Malformed Jev choice response');
+    if (answer?.type !== 'choice' || !validAnswer(answer, input.candidates.map(candidate => ({ ...candidate, command: null })))) throw new JevRequestError('malformed-response', 'Malformed Jev choice response');
     return { choice: answer.choice, confidence: answer.confidence, probabilities: answer.probabilities,
-      model: typeof data.model === 'string' ? data.model : undefined,
-      inputTokens: Number.isSafeInteger(data.usage?.input_tokens) && data.usage.input_tokens >= 0 ? data.usage.input_tokens : undefined };
+      model: typeof data.model === 'string' ? data.model : undefined, requestedModel,
+      inputTokens: Number.isSafeInteger(data.usage?.input_tokens) && data.usage.input_tokens >= 0 ? data.usage.input_tokens : undefined,
+      outputTokens: Number.isSafeInteger(data.usage?.output_tokens) && data.usage.output_tokens >= 0 ? data.usage.output_tokens : undefined };
   };
+  return Object.assign(judge, { requestedModel });
 }
 
 const object = (value: Json | undefined): Record<string, Json> => value && typeof value === 'object' && !Array.isArray(value) ? value : {};

@@ -18,14 +18,14 @@ export interface TrialOptions {
 const projectRoot = fileURLToPath(new URL('..', import.meta.url));
 const hash = (value: unknown) => createHash('sha256').update(JSON.stringify(value)).digest('hex');
 
-async function versions() {
+export async function versions() {
   const lock = JSON.parse(await readFile(new URL('../package-lock.json', import.meta.url), 'utf8'));
   let revision = 'uncommitted';
   let dirty = true;
   try { revision = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: projectRoot, encoding: 'utf8', stdio: ['ignore','pipe','ignore'], windowsHide: true }).trim(); } catch { /* A fresh local workspace may not have a commit yet. */ }
   try { dirty = !!execFileSync('git', ['status', '--porcelain'], { cwd: projectRoot, encoding: 'utf8', stdio: ['ignore','pipe','ignore'], windowsHide: true }).trim(); } catch { /* No repository yet. */ }
   const source = createHash('sha256');
-  for (const directory of ['src', 'experiments', 'scenarios']) {
+  for (const directory of ['src', 'experiments', 'scenarios', 'controllers', 'integrations']) {
     const paths = (await readdir(resolve(projectRoot, directory), { recursive: true })).filter(path => path.endsWith('.ts')).sort();
     for (const path of paths) { source.update(`${directory}/${path.replaceAll('\\','/')}\n`); source.update(await readFile(resolve(projectRoot, directory, path))); }
   }

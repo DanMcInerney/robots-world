@@ -110,9 +110,15 @@ export class MavlinkAdapter {
     for (const vehicle of this.vehicles.values()) {
       const observation = await vehicle.port.observe();
       if (observation.events.length) {
+        const referenced = new Set(observation.events.flatMap(event => {
+          const data = event.data;
+          return data && typeof data === 'object' && !Array.isArray(data) && typeof data.jobId === 'string' ? [data.jobId] : [];
+        }));
         this.trace(vehicle.port.robotId, 'execution_observed', {
           observation: observation.sequence,
-          jobs: observation.jobs.map(({ id, commandId, status, updatedSimMs }) => ({ id, commandId, status, updatedSimMs })),
+          // Each transition is retained with its job. Repeating all 128 historical
+          // jobs every packet obscures new evidence and can truncate the event tail.
+          jobs: observation.jobs.filter(job => job.status === 'running' || referenced.has(job.id)).map(({ id, commandId, status, updatedSimMs }) => ({ id, commandId, status, updatedSimMs })),
           events: observation.events,
         });
         // This adapter owns event consumption for its port. Radio messages are

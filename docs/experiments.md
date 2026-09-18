@@ -1,5 +1,7 @@
 # Headless control experiments
 
+For the five-arm Jev/DroneRTS-style experiment and side-by-side viewer, see [controller comparisons](comparison.md). Run `npm run compare` for an offline paired matrix; it makes no model calls.
+
 Run from the project directory with Node 24 or newer. These commands use deterministic scripted policies and make no model API calls:
 
 ```powershell
@@ -39,7 +41,7 @@ The integration tests additionally disconnect a working swarm and check that eac
 
 ## Evidence and interpretation
 
-Each result contains the complete scenario, seed, configuration hash, source hash, Git revision/dirty marker, Node and dependency versions, accepted command/application ticks, observation deliveries, delivered sensor readings, radio events, bounded journal coverage, and a final physical-state hash. Trace records preserve simulator timestamps separately from wall timestamps. They are evidence for diagnosis; a trace replay UI and arbitrary external-controller replay loader are not implemented.
+Each result contains the complete scenario, seed, configuration hash, source hash, Git revision/dirty marker, Node and dependency versions, accepted command/application ticks, observation deliveries, delivered sensor readings, radio events, bounded journal coverage, and a final physical-state hash. Trace records preserve simulator timestamps separately from wall timestamps. The comparison runner adds synchronized recorded-trajectory playback and raw event inspection. Arbitrary external-controller input replay is not implemented.
 
 Metrics include per-robot root displacement and path length, retained job statuses, policy command/rejection/hold/beacon counts, radio delivery/loss totals, and collision contact starts excluding the ground. Articulated robots have fixed roots, so root distance intentionally does not measure manipulation success. Add task-specific evaluators rather than treating distance or command acceptance as universal success.
 
