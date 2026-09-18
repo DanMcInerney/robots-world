@@ -6,6 +6,7 @@ import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { firstRequest, type Strategy } from "./strategies.ts";
 import { makeMenu } from "../reactive/contract.ts";
+import { axesRequest, compose, COMBINATIONS, type AxesArm } from "../jev-axes/controller.ts";
 
 /** A global billing failure cannot be resolved by trying another strategy. */
 export async function billingFailure(file: string) {
@@ -22,6 +23,11 @@ export async function billingFailure(file: string) {
 
 export const percentile = (v: number[], p: number) =>
   v.length ? [...v].sort((a, b) => a - b)[Math.ceil(v.length * p) - 1]! : null;
+/** Check original clocks; presentation rounding is separately verified by request reconstruction. */
+export function assertSensorCausality(observation: any) {
+  for (const sensor of Object.values(observation.sensors) as any[])
+    if (sensor) assert(sensor.acquiredSimMs <= sensor.receivedSimMs && sensor.receivedSimMs <= observation.simMs, 'Noncausal factored sensor');
+}
 /** Offline trace audit and indexed report. Exact payloads live in lazy-loaded decision files. */
 export async function report(directory: string) {
   const batch = JSON.parse(
@@ -49,7 +55,7 @@ export async function report(directory: string) {
       sensorSamples = 0,
       packets = 0,
       missingUsage = 0;
-    const byId = new Map<string, any>();
+    const byId = new Map<string, any>(), portObservations = new Map<number, any>(), portFeedback: any[] = [];
     for await (const line of createInterface({
       input: createReadStream(resolve(directory, `${result.id}.jsonl`)),
       crlfDelay: Infinity,
@@ -65,8 +71,25 @@ export async function report(directory: string) {
         assert.equal(d.sourceHash, batch.manifest.sourceHash);
       }
       if (row.kind === "reactive.menu") menu = d;
-      if (row.kind === "strategy.request") {
-        if (d.stage === "initial") {
+      if (row.kind === 'reactive.port.observation') {
+        portObservations.set(d.sequence, d);
+        if (portObservations.size > 64) portObservations.delete(portObservations.keys().next().value!);
+      }
+      if (row.kind === "axes.request") {
+        assert.deepEqual(d.rawObservation, portObservations.get(d.rawObservation.sequence), 'Controller request is not based on the observation actually delivered by the port');
+        assert.deepEqual(d.rawFeedback, portFeedback, 'Controller feedback differs from actual tool receipts');
+        assert.deepEqual(d.request, axesRequest(d.rawObservation, result.arm as AxesArm, portFeedback), 'Factored request differs from delivered observation');
+        assert.equal(d.source.simMs, d.rawObservation.simMs);
+        assert.equal(d.source.odometryMs, d.rawObservation.sensors.odometry.acquiredSimMs);
+        current = { id: d.decisionId, index: decisions.length, simMs: d.source.simMs, source: d.source,
+          rawSensors: d.rawObservation, rawObservation: d.rawObservation, candidates: [], offeredCount: COMBINATIONS,
+          candidateScope: 'The candidate inspector shows only the composed selection. All 6 complete option sets are in the exact API request; no joint tuples were prefiltered.',
+          requests: [], responses: [], wire: [] };
+        decisions.push(current); byId.set(current.id, current);
+        assertSensorCausality(d.rawObservation);
+      }
+      if (row.kind === "strategy.request" || row.kind === "axes.request") {
+        if (d.stage === "initial" && row.kind !== "axes.request") {
           assert(menu.rawSensors, "Raw source snapshot missing");
           const rebuilt = makeMenu(menu.rawSensors, true, manifest.config);
           assert.deepEqual(
@@ -147,7 +170,35 @@ export async function report(directory: string) {
         byId.get(d.decisionId).selection = d;
       if (row.kind === "strategy.shortlist")
         byId.get(d.decisionId).shortlist = d;
+      if (row.kind === 'axes.mapping') {
+        const decision = byId.get(d.decisionId);
+        assert(decision?.rawObservation, 'Mapping without observation');
+        const expected = compose(decision.rawObservation, decision.requests[0].request, decision.responses.at(-1).body);
+        assert.deepEqual(d.candidate, expected.candidate, 'Mapped command differs from model choices');
+        assert.deepEqual(d.selections, expected.selections);
+        decision.candidates = [d.candidate];
+        decision.mapping = d;
+      }
       if (row.kind === "reactive.command.admitted") admitted = d;
+      if (row.kind === 'reactive.port.command') {
+        portFeedback.push({ command: d.command, receipt: d.receipt }); if (portFeedback.length > 3) portFeedback.shift();
+        const decision = byId.get(d.command.id);
+        if (decision?.rawObservation) {
+          const { duration, ...args } = decision.mapping.candidate.action;
+          assert.deepEqual(d.command.args, args, 'Command changed after factor composition');
+          assert.equal(d.command.validForMs, duration * 1000);
+          assert.equal(d.command.basedOn.observation, decision.rawObservation.sequence);
+          assert.deepEqual(d.source, decision.source, 'Command used a different source observation');
+          const accepted = d.receipt.status === 'accepted' || d.receipt.status === 'completed';
+          decision.execution = { ...d, receipt: { ...d.receipt, accepted }, candidate: decision.mapping.candidate };
+          if (accepted) {
+            assert.deepEqual(admitted.action, decision.mapping.candidate.action);
+            assert.deepEqual(admitted.source, decision.source);
+            assert(d.simMs - d.source.odometryMs <= manifest.config.sourceAgeLimitMs);
+            decision.admission = admitted;
+          }
+        }
+      }
       if (row.kind === "reactive.decision") {
         const decision = byId.get(d.answer.value.decisionId);
         assert(decision);
@@ -220,7 +271,7 @@ export async function report(directory: string) {
     checks.push(
       "Every initial request reconstructed from delivered sensors only",
       "Original observation preserved across stages",
-      "Selected commands match offered actions",
+      "Selected commands match offered actions or exact independently selected control values",
       "Contiguous world journal; complete trace",
       "Full duration; world advanced during inference",
       "MAVLink applications precede command expiry",
@@ -250,7 +301,7 @@ export async function report(directory: string) {
         questions: d.requests.map(
           (r: any) => Object.keys(r.request.questions).length,
         ),
-        offered: d.candidates.length,
+        offered: d.offeredCount ?? d.candidates.length,
         accepted: d.execution?.receipt.accepted ?? null,
         admittedMs: d.execution?.simMs ?? null,
         appliedMs: d.applications[0]?.simMs ?? null,
@@ -325,7 +376,8 @@ export async function report(directory: string) {
       batch.manifest.strategies.length * batch.manifest.seeds.length,
     audit: {
       runs: runs.length,
-      pairedSeeds: [...environments.keys()],
+      environmentSeeds: [...environments.keys()],
+      pairedSeeds: [...environments.keys()].filter(seed => batch.manifest.strategies.every((arm: string) => runs.some(r => r.seed === seed && r.arm === arm))),
       invalid: batch.invalidTrials.length,
     },
   };
