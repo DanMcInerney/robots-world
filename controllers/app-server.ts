@@ -10,7 +10,7 @@ export const isObject = (value: unknown): value is Record<string, unknown> => !!
 
 /** Owns an opt-in native process; never opens a model session until explicitly run. */
 export async function connectCodex(command: string, cwd: string): Promise<NativeClient> {
-  const child = spawn(command, ['app-server', '--listen', 'stdio://'], { cwd, windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'] });
+  const child = spawn(command, ['app-server', '--listen', 'stdio://'], { cwd, windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'], env: { ...process.env, TYPESAFE_API_KEY: undefined, JEV_API_KEY: undefined } });
   const listeners = new Set<(event: NativeEvent) => void>();
   const pending = new Map<number, { resolve(value: unknown): void; reject(error: unknown): void; timer: ReturnType<typeof setTimeout> }>();
   let next = 0, ended = false, buffer = Buffer.alloc(0);

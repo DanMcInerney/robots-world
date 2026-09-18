@@ -2,6 +2,22 @@
 
 A small robotics **control testbed**. Physics, sensors and radio keep moving while a controller thinks. Run one robot, a mixed workbench, or a swarm. Swap the controller without changing the world.
 
+Read the [design principles](PRINCIPLES.md) for the platform's boundaries and rules for fair controller comparisons.
+
+Run `npm run compare` for the offline five-arm [Jev/agent control experiment](docs/comparison.md), then open **Compare experiments** in the cockpit for paired trajectories, timing, raw MAVLink and decision traces. [Local policy jobs](docs/policy-jobs.md) connect continuous controllers to a real Nervelet Bridge without adding framework dependencies to the world core.
+
+The newer [English-mission experiment](docs/mission-comparison.md) compares actual Jev, native Claude and an asynchronous hybrid over the same drone controls, after tuning Jev's action menu. [Live results](docs/mission-results.md) report twelve headless flights and their raw evidence; no scripted mission policy competes in that experiment.
+
+The [maneuvering and camera benchmark](docs/flight-comparison.md) expands this to parameterized XYZ movement, heading, pitch and zoom while following a moving vehicle through obstacles. It compares Jev, Claude, Codex Luna and a Codex/Jev hybrid; successful inspection depends on actual camera geometry, not an inspection macro.
+
+[Expanded-control results](docs/flight-results.md) record the completed twelve-flight pilot. [Jev game-controller research](docs/jev-game-patterns.md) examines StarCraft, Doom, Mario and other source repositories, including the assistance their code supplies and the next experiment designs it motivates.
+
+The [continuous changing-world experiment](docs/reactive-comparison.md) tests actual Jev and native model decisions with changing rover motion, a moving obstacle, delayed/noisy sensors, an impaired command link and new English goals during flight. All candidate consequences are computed from delivered observations; no scripted mission controller competes.
+
+[Actual results from 24 attempts](docs/reactive-results.md) separate response speed, brief goal attainment, sustained framing, collisions, early termination and the effect of Codex advice.
+
+[Reactive experiment corrections](docs/reactive-v3.md) fix command timing and controller failure handling, expose continuous controller ports, declare sensor assumptions and add a predeclared sustained-framing score. These changes have offline regression evidence; the earlier model results retain their original source and scores.
+
 ```sh
 npm ci
 npm run dev

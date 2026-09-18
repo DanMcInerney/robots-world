@@ -118,6 +118,8 @@ test('MAVLink streaming updates survive sequence wrap and telemetry drains execu
       ids.add(observation.jobs.at(-1)!.commandId);
     }
     assert.equal(ids.size, 300);
+    const execution = world.journal.after().filter(event => event.kind === 'execution_observed');
+    assert.ok(execution.length > 0 && execution.every(event => !event.truncated), 'transition evidence stays intact after job history fills');
     const final = await robot.observe(); assert.equal(final.inbox.length, 1); assert.equal(final.inbox[0]!.data, 'keep me');
     assert.ok(world.physics.body('fixture-1/base').pose.position.x > 2.9, 'fresh setpoints continue motion after wrap');
     await world.advance(55); assert.equal((await robot.observe()).jobs.at(-1)?.status, 'expired', 'watchdog still stops an interrupted stream');

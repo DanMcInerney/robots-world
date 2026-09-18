@@ -3,7 +3,9 @@ import { randomUUID } from 'node:crypto';
 import { delay } from '../controllers/tools.ts';
 
 /** Structural implementation of Nervelet 0.2 Environment; no Nervelet import in the world. */
-export async function createNerveletEnvironment(port: RobotPort) {
+export async function createNerveletEnvironment(port: RobotPort, options: { commandValidForMs?: number } = {}) {
+  const commandValidForMs = options.commandValidForMs ?? 30000;
+  if (!Number.isFinite(commandValidForMs) || commandValidForMs < 1 || commandValidForMs > 60000) throw new Error('Invalid command lifetime');
   const description = await port.describe();
   let acknowledgement = Promise.resolve();
   const received = new Map<string, { sequence: number; wallMs: number }>();
@@ -32,7 +34,7 @@ export async function createNerveletEnvironment(port: RobotPort) {
       }));
       samples.radio_inbox = { value: observation.inbox as unknown as Json, receivedMs, acquired: { clock: `sim:${observation.epoch}`, ms: observation.simMs }, valid: true, reason: undefined };
       return {
-        state: { value: { robotId: port.robotId, simMs: observation.simMs }, receivedMs, valid: true }, samples,
+        state: { value: { robotId: port.robotId, simMs: observation.simMs, observation: observation.sequence, goal: observation.goal }, receivedMs, valid: true }, samples,
         jobs: observation.jobs.map(job => ({ id: job.id, status: job.status === 'expired' ? 'failed' as const : job.status, commandId: job.commandId, kind: job.action, args: job.args, startedMs: job.startedSimMs, updatedMs: job.updatedSimMs })),
         events: observation.events.filter(event => event.id > after).map(event => ({ seq: event.id, kind: event.kind, atMs: observation.wallMs, data: event.data })),
         hasMore: false, fault: observation.fault,
@@ -49,7 +51,7 @@ export async function createNerveletEnvironment(port: RobotPort) {
       if (command.kind === 'radio_ack') {
         await port.acknowledge(0, command.args.packetIds as string[]); return { id: command.id, status: 'completed' as const };
       }
-      const receipt = await port.command({ id: command.id, action: command.kind, args: command.args, validForMs: 30000 });
+      const receipt = await port.command({ id: command.id, action: command.kind, args: command.args, validForMs: commandValidForMs });
       return { id: receipt.id, status: receipt.status === 'duplicate' ? (receipt.jobId ? 'accepted' as const : 'completed' as const) : receipt.status, jobId: receipt.jobId, reason: receipt.reason };
     },
     async cancel(_id: string, signal: AbortSignal) { signal.throwIfAborted(); return hold(); },
@@ -59,8 +61,8 @@ export async function createNerveletEnvironment(port: RobotPort) {
 }
 
 /** The caller loads its chosen Nervelet version; this adapter owns no agent or continuation logic. */
-export async function createNerveletBridge(port: RobotPort, nervelet: { Bridge: new (...args: any[]) => any }, goal: string) {
-  const environment = await createNerveletEnvironment(port);
+export async function createNerveletBridge(port: RobotPort, nervelet: { Bridge: new (...args: any[]) => any }, goal: string, options: { commandValidForMs?: number } = {}) {
+  const environment = await createNerveletEnvironment(port, options);
   const bridge = new nervelet.Bridge(environment, goal);
   await bridge.start();
   return bridge;
