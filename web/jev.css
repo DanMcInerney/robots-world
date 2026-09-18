@@ -6,9 +6,23 @@
   font-size: 13px;
   color-scheme: dark;
 }
-.expand-panel { float: right; font-size: 10px; padding: 2px 5px; margin: -5px -5px 5px 5px; }
-.panels > article.expanded { position: fixed; inset: 5vh 5vw; z-index: 20; max-height: 90vh; box-shadow: 0 0 0 100vw #000b; }
-.panels > article.expanded pre { font-size: 13px; max-height: 65vh; }
+.expand-panel {
+  float: right;
+  font-size: 10px;
+  padding: 2px 5px;
+  margin: -5px -5px 5px 5px;
+}
+.panels > article.expanded {
+  position: fixed;
+  inset: 5vh 5vw;
+  z-index: 20;
+  max-height: 90vh;
+  box-shadow: 0 0 0 100vw #000b;
+}
+.panels > article.expanded pre {
+  font-size: 13px;
+  max-height: 65vh;
+}
 * {
   box-sizing: border-box;
 }
@@ -117,6 +131,19 @@ input[type="checkbox"] {
 }
 .overview {
   margin-top: 25px;
+}
+#batch-stop {
+  padding: 14px 16px;
+  background: #35291c;
+  border: 1px solid #80623d;
+  border-radius: 5px;
+  color: #f1ce99;
+  line-height: 1.65;
+}
+#incomplete-list {
+  color: #b7a58e;
+  font-size: 11px;
+  line-height: 1.5;
 }
 .section-title {
   display: flex;
@@ -243,6 +270,9 @@ output {
   color: #8ba3b5;
   font-size: 11px;
   padding: 0 14px;
+}
+.flight-score {
+  margin: 10px 14px;
 }
 .scene {
   height: 260px;

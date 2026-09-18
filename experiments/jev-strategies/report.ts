@@ -7,6 +7,19 @@ import { pathToFileURL } from "node:url";
 import { firstRequest, type Strategy } from "./strategies.ts";
 import { makeMenu } from "../reactive/contract.ts";
 
+/** A global billing failure cannot be resolved by trying another strategy. */
+export async function billingFailure(file: string) {
+  for await (const line of createInterface({
+    input: createReadStream(file),
+    crlfDelay: Infinity,
+  })) {
+    const row = JSON.parse(line);
+    if (row.kind === "strategy.http-error" && row.data.status === 402)
+      return row.data;
+  }
+  return null;
+}
+
 export const percentile = (v: number[], p: number) =>
   v.length ? [...v].sort((a, b) => a - b)[Math.ceil(v.length * p) - 1]! : null;
 /** Offline trace audit and indexed report. Exact payloads live in lazy-loaded decision files. */
@@ -301,6 +314,12 @@ export async function report(directory: string) {
     runs,
     results: undefined,
     summary,
+    stopped: await readFile(resolve(directory, "STOPPED.json"), "utf8")
+      .then(JSON.parse)
+      .catch((error: NodeJS.ErrnoException) => {
+        if (error.code === "ENOENT") return null;
+        throw error;
+      }),
     complete:
       runs.length + batch.invalidTrials.length ===
       batch.manifest.strategies.length * batch.manifest.seeds.length,

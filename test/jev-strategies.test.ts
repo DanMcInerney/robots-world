@@ -1,5 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { mkdtemp, writeFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { billingFailure } from "../experiments/jev-strategies/report.ts";
 import { ReactiveWorld } from "../experiments/reactive/world.ts";
 import { makeMenu, goalFor } from "../experiments/reactive/contract.ts";
 import {
@@ -14,24 +18,70 @@ import {
   presentedState,
 } from "../experiments/jev-strategies/strategies.ts";
 
-test('Rounded provider tables tolerate one percentage point without replacing the returned choice', () => {
-  const body: Response = {model: MODEL, answers: {move: {type: 'choice', choice: 'a', confidence: .1, probabilities: {a: .49, b: .5, c: .01}}}};
-  assert.equal(choice(body, 'move', ['a','b','c']), 'a');
-  body.answers.move.probabilities = {a: .48, b: .51, c: .01};
-  assert.throws(() => choice(body, 'move', ['a','b','c']), /Invalid choice/);
+test("Batch billing stop distinguishes exhausted credits from per-request errors and completed model responses", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "jev-billing-"));
+  try {
+    const file = join(directory, "trace.jsonl");
+    await writeFile(
+      file,
+      [
+        { kind: "strategy.http-error", data: { status: 400 } },
+        { kind: "strategy.response", data: { status: 402 } },
+      ]
+        .map((r) => JSON.stringify(r))
+        .join("\n"),
+    );
+    assert.equal(await billingFailure(file), null);
+    await writeFile(
+      file,
+      JSON.stringify({
+        kind: "strategy.http-error",
+        data: { status: 402, raw: "billing_error" },
+      }),
+    );
+    assert.equal((await billingFailure(file))?.raw, "billing_error");
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
 });
 
-test('Range presentation preserves every return and timestamps without mutating original evidence', async () => {
+test("Rounded provider tables tolerate one percentage point without replacing the returned choice", () => {
+  const body: Response = {
+    model: MODEL,
+    answers: {
+      move: {
+        type: "choice",
+        choice: "a",
+        confidence: 0.1,
+        probabilities: { a: 0.49, b: 0.5, c: 0.01 },
+      },
+    },
+  };
+  assert.equal(choice(body, "move", ["a", "b", "c"]), "a");
+  body.answers.move.probabilities = { a: 0.48, b: 0.51, c: 0.01 };
+  assert.throws(() => choice(body, "move", ["a", "b", "c"]), /Invalid choice/);
+});
+
+test("Range presentation preserves every return and timestamps without mutating original evidence", async () => {
   const world = await ReactiveWorld.create(24);
   try {
-    const menu = makeMenu(world.state()), original = structuredClone(menu.state), delivered = presentedState(menu) as any;
+    const menu = makeMenu(world.state()),
+      original = structuredClone(menu.state),
+      delivered = presentedState(menu) as any;
     const raw = (menu.state as any).ranges;
     assert.deepEqual(menu.state, original);
     assert.equal(delivered.ranges.value.points.length, raw.value.points.length);
     assert.equal(delivered.ranges.acquiredMs, raw.acquiredMs);
     assert.equal(delivered.ranges.receivedMs, raw.receivedMs);
-    for (const [i,p] of raw.value.points.entries()) for (const axis of ['x','y','z']) assert(Math.abs(p[axis] - delivered.ranges.value.points[i][axis]) <= .000501);
-  } finally { await world.close(); }
+    for (const [i, p] of raw.value.points.entries())
+      for (const axis of ["x", "y", "z"])
+        assert(
+          Math.abs(p[axis] - delivered.ranges.value.points[i][axis]) <=
+            0.000501,
+        );
+  } finally {
+    await world.close();
+  }
 });
 
 function response(request: Request): Response {

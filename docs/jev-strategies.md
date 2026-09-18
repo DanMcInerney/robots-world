@@ -33,21 +33,21 @@ The rover turns unpredictably from private seeded state. A moving obstacle cross
 
 The primary score requires the requested viewing side, 2.5–6 metre distance and central-half image framing together for at least 50% of **each** phase after a five-second warm-up, including a continuous one-second dwell. Collisions, boundary breaches, controller failure and delivery-guard intervention prevent a pass. Short attainment, visibility, response latency and framing percentages remain separate measurements.
 
-Provider errors invalidate the controller's authority, cause explicit local hold, and leave the world advancing for the rest of the flight. Expired commands also enter hold. There is no automatic retry or substitution. Rejected stale answers remain recorded. The simplified local hold brakes immediately; this is not a realistic emergency stopping model.
+Provider errors invalidate the controller's authority, cause explicit local hold, and leave the world advancing for the rest of the flight. Expired commands also enter hold. There is no automatic retry or substitution. HTTP 402 stops the batch after the failed flight finishes in hold; adding credits and resuming requires an explicit new run. Rejected stale answers remain recorded. The simplified local hold brakes immediately; this is not a realistic emergency stopping model.
 
 ## Evidence and reproduction
 
-With an explicitly configured local credential:
+With an explicitly configured local credential and fresh output directories (existing evidence is never overwritten):
 
 ```sh
-node --env-file=.env.jev.local experiments/jev-strategies/run.ts --phase development --seeds 74 --seconds 20 --output .runtime/experiments/jev-strategies-development-v4
-node --env-file=.env.jev.local experiments/jev-strategies/run.ts --phase held-out --seeds 701,702,703,704 --seconds 60 --freeze .runtime/experiments/jev-strategies-development-v4/freeze.json --output .runtime/experiments/jev-strategies-held-out-v1
+node --env-file=.env.jev.local experiments/jev-strategies/run.ts --phase development --seeds 81 --seconds 20 --output .runtime/experiments/jev-strategies-development-new
+node --env-file=.env.jev.local experiments/jev-strategies/run.ts --phase held-out --seeds 801,802,803,804 --seconds 60 --freeze .runtime/experiments/jev-strategies-development-new/freeze.json --output .runtime/experiments/jev-strategies-held-out-new
 ```
 
 The runner creates exclusive attempt files, a source snapshot, immutable raw JSONL traces and a small report index. Decision files load on demand instead of embedding all raw requests in one enormous page. Reporting and audit can run without inference:
 
 ```sh
-node experiments/jev-strategies/report.ts .runtime/experiments/jev-strategies-held-out-v1
+node experiments/jev-strategies/report.ts .runtime/experiments/jev-strategies-held-out-new
 ```
 
 The audit reconstructs each initial request from its original delivered sensors, checks menu identity, checks multi-stage observation provenance, matches executed actions to offered actions, verifies trace continuity and command expiry, and compares seeded environmental motion. Wire records are labeled with their capture interval; applied commands are separately correlated by command ID. Raw traces preserve the full sensor/protocol journal.

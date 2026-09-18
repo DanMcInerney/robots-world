@@ -9,7 +9,7 @@ import { resolve, dirname } from "node:path";
 import { sourceHash, trial } from "../reactive/run.ts";
 import { DEFAULT_CONFIG, experimentConfig } from "../reactive/config.ts";
 import { MODEL, STRATEGIES, type Strategy } from "./strategies.ts";
-import { report } from "./report.ts";
+import { billingFailure, report } from "./report.ts";
 
 const args = new Map<string, string>();
 for (let i = 2; i < process.argv.length; i += 2) {
@@ -151,6 +151,21 @@ outer: for (const [index, seed] of seeds.entries())
   for (let offset = 0; offset < strategies.length; offset++) {
     if (tokens >= manifest.limits.maxReportedInputTokens) {
       console.log(JSON.stringify({ event: "budget-stop", tokens }));
+      await writeFile(
+        resolve(directory, "STOPPED.json"),
+        JSON.stringify(
+          {
+            reason: "token-budget",
+            recordedAt: new Date().toISOString(),
+            message:
+              "The reported input-token budget was reached. No further flight was started.",
+            tokens,
+          },
+          null,
+          2,
+        ),
+      );
+      await report(directory);
       break outer;
     }
     const strategy = strategies[(index + offset) % strategies.length]!;
@@ -186,6 +201,25 @@ outer: for (const [index, seed] of seeds.entries())
       resolve(directory, "results.json"),
       JSON.stringify({ manifest, results, invalidTrials }),
     );
+    const billing = await billingFailure(
+      resolve(directory, `${strategy}-${seed}.jsonl`),
+    );
+    if (billing)
+      await writeFile(
+        resolve(directory, "STOPPED.json"),
+        JSON.stringify(
+          {
+            reason: "billing-exhausted",
+            recordedAt: new Date().toISOString(),
+            trial: `${strategy}-${seed}`,
+            message:
+              "TypeSafe returned HTTP 402. The failed flight completed in local hold; the batch stopped before requesting another strategy. No automatic retry.",
+            providerError: billing,
+          },
+          null,
+          2,
+        ),
+      );
     const evidence = await report(directory);
     tokens = evidence.runs.reduce((sum: number, r: any) => sum + r.tokens, 0);
     console.log(
@@ -197,6 +231,7 @@ outer: for (const [index, seed] of seeds.entries())
         summary: evidence.summary.filter((s: any) => s.id === strategy),
       }),
     );
+    if (billing) break outer;
   }
 if (
   phase === "development" &&
