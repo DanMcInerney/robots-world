@@ -9,6 +9,7 @@ import { BRIEF_SCHEMA, ClaudeJson, CodexJson, decisionInput, jev, parseBrief, ty
 import { ReactiveWorld, type Emit } from './world.ts';
 import type { Controller, RobotPort } from '../../src/contracts.ts';
 import { CAPABILITIES, DEFAULT_CONFIG, experimentConfig, type ExperimentConfig } from './config.ts';
+import { judge, STRATEGIES, type Strategy } from '../jev-strategies/strategies.ts';
 
 /** Hash complete local source trees so new adapters cannot silently escape a freeze. */
 export async function sourceHash() {
@@ -47,11 +48,14 @@ async function prepareBrief(directory: string) {
   } finally { await native?.close(); trace.close(); }
 }
 
-export async function trial(options: { arm: string; seed: number; seconds: number; directory: string; key?: string; phase: string; brief?: string; config?: ExperimentConfig; controller?: Controller; controllerSource?: { files: string[] }; fixtureDecision?: (menu: Menu, signal: AbortSignal) => Promise<Answer>; realtime?: boolean }) {
+export async function trial(options: { arm: string; seed: number; seconds: number; directory: string; key?: string; phase: string; brief?: string; config?: ExperimentConfig; strategy?: Strategy; maxDecisions?: number; controller?: Controller; controllerSource?: { files: string[] }; fixtureDecision?: (menu: Menu, signal: AbortSignal) => Promise<Answer>; realtime?: boolean }) {
   if (!/^[\w-]+$/.test(options.arm) || !Number.isInteger(options.seed) || !Number.isFinite(options.seconds) || options.seconds < 1 || options.seconds > 90) throw new Error('Invalid trial identity/duration');
   if ((options.fixtureDecision || options.realtime === false) && options.phase !== 'fixture') throw new Error('Synthetic controls or accelerated time require fixture phase');
   if (options.controller && options.phase !== 'fixture' && !options.controllerSource?.files.length) throw new Error('Controller source files required for provenance');
   const config = experimentConfig(options.config);
+  const maxDecisions = options.maxDecisions ?? 150;
+  if (!Number.isInteger(maxDecisions) || maxDecisions < 1 || maxDecisions > 500) throw new Error('Invalid decision bound');
+  if (options.strategy && (options.controller || options.fixtureDecision || !Object.hasOwn(STRATEGIES, options.strategy))) throw new Error('Ambiguous strategy controller');
   const { arm, seed, seconds, directory, key = '', phase } = options, id = `${arm}-${seed}`, trace = new Trace(resolve(directory, `${id}.jsonl`)), lifetime = new AbortController();
   let world: ReactiveWorld | undefined, native: ClaudeJson | CodexJson | undefined, repair: CodexJson | undefined;
   let pending: Promise<void> | undefined, pendingRepair: Promise<void> | undefined, ready: { menu: Menu; answer?: Answer; error?: string } | undefined;
@@ -73,6 +77,7 @@ export async function trial(options: { arm: string; seed: number; seconds: numbe
     const hash = await sourceHash();
     const start = performance.now() - world.world.simMs, setupMs = performance.now() - setupStart;
     trace.emit('reactive.manifest', { id, phase, arm, seed, seconds, runtime: { node: process.version, platform: process.platform, arch: process.arch }, sourceHash: hash, config, capabilities: CAPABILITIES, controllerSources, controllerArrangement: options.controller ? { id: options.controller.id, interface: 'RobotPort: continuous controls and native tools' } : options.fixtureDecision ? 'synthetic mechanics fixture' : 'restricted menu choice', scenario: world.world.scenario, setupMs, initialBrief: advice ?? null,
+      strategy: options.strategy ? STRATEGIES[options.strategy] : null, maxDecisions,
       interpretation: phase === 'fixture' ? 'OFFLINE MECHANICS FIXTURE. No AI performance evidence.' : 'Real inference in simplified simulation. Capabilities and controller representation are separate. No evaluator data in decision input.', sourceAgeLimitMs: config.sourceAgeLimitMs, minimumRefreshMs: config.minimumRefreshMs });
     if (options.controller) {
       const port = world.controllerPort(); controllerPort = port;
@@ -103,13 +108,13 @@ export async function trial(options: { arm: string; seed: number; seconds: numbe
           trace.emit('reactive.repair', { simMs: runtime.world.simMs, source: menu.source, accepted: valid, answer, instructions: valid ? advice : null });
         }).catch(error => { if (!lifetime.signal.aborted) trace.emit('reactive.repair.error', { simMs: runtime.world.simMs, error: String(error) }); }).finally(() => { pendingRepair = undefined; });
       }
-      if (!options.controller && !controllerFailed && !pending && !ready && world.world.simMs >= nextAt && stats.started < 150) {
+      if (!options.controller && !controllerFailed && !pending && !ready && world.world.simMs >= nextAt && stats.started < maxDecisions) {
         const state = world.state(), menu = makeMenu(state, arm !== 'jev-bare', config); stats.menuCounts.push(menu.candidates.length); nextAt = state.simMs + config.minimumRefreshMs;
-        trace.emit('reactive.menu', { simMs: state.simMs, source: menu.source, menuHash: menu.hash, candidates: menu.candidates });
+        trace.emit('reactive.menu', { simMs: state.simMs, source: menu.source, menuHash: menu.hash, candidates: menu.candidates, ...(options.strategy ? { rawSensors: state } : {}) });
         if (!menu.candidates.length) { controllerFailed = true; lifetime.abort(); await world.failController('empty-action-menu'); }
         else {
         stats.started++;
-        const request = Promise.resolve().then(() => options.fixtureDecision ? options.fixtureDecision(menu, lifetime.signal) : native ? native.ask(decisionInput(menu), lifetime.signal) : jev(menu, key, trace.emit, lifetime.signal, advice));
+        const request = Promise.resolve().then(() => options.fixtureDecision ? options.fixtureDecision(menu, lifetime.signal) : options.strategy ? judge(menu, options.strategy, key, trace.emit, lifetime.signal) : native ? native.ask(decisionInput(menu), lifetime.signal) : jev(menu, key, trace.emit, lifetime.signal, advice));
         pending = request.then(answer => {
           if (lifetime.signal.aborted) return; selected(answer.value, menu); stats.completed++; stats.latencyMs.push(answer.latencyMs); if (answer.usage) stats.usage.push(answer.usage); if (answer.cumulativeCostUsd !== undefined) stats.cumulativeCostUsd = answer.cumulativeCostUsd;
           ready = { menu, answer };

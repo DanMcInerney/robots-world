@@ -4,6 +4,8 @@ A small robotics **control testbed**. Physics, sensors and radio keep moving whi
 
 Read the [design principles](PRINCIPLES.md) for the platform's boundaries and rules for fair controller comparisons.
 
+**[Jev Flight Lab](docs/jev-strategies.md)** compares eight real Jev control arrangements in a continuously changing world. Open **Jev Flight Lab** in the cockpit to compare flights and inspect exact instructions, observations, choices, probabilities and applied MAVLink commands.
+
 Run `npm run compare` for the offline five-arm [Jev/agent control experiment](docs/comparison.md), then open **Compare experiments** in the cockpit for paired trajectories, timing, raw MAVLink and decision traces. [Local policy jobs](docs/policy-jobs.md) connect continuous controllers to a real Nervelet Bridge without adding framework dependencies to the world core.
 
 The newer [English-mission experiment](docs/mission-comparison.md) compares actual Jev, native Claude and an asynchronous hybrid over the same drone controls, after tuning Jev's action menu. [Live results](docs/mission-results.md) report twelve headless flights and their raw evidence; no scripted mission policy competes in that experiment.
