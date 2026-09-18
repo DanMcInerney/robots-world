@@ -7,7 +7,7 @@ root.innerHTML = `<header><a href="/">ROBOTS WORLD</a><span class="eyebrow">/ RE
 <section class="cockpit"><div class="section-title"><h2>Decision cockpit</h2><span>Exact recorded payloads · Jev supplies probabilities, no reasoning transcript</span></div><div class="inspect-controls"><label>Inspect <select id="inspect"><option value="0">Left flight</option><option value="1">Right flight</option></select></label><button id="previous">Previous decision</button><select id="decision" aria-label="Decision"></select><button id="next">Next decision</button><label><input id="follow" type="checkbox" checked> Follow replay</label><a id="trace">Full raw trace</a><a id="download">Decision JSON</a></div><p id="decision-status"></p>
 <div class="panels"><article><h3>01 / Instructions & questions</h3><label>API stage <select id="stage"></select></label><label>Question <select id="question"></select></label><pre id="instructions"></pre><details><summary>Exact complete API request</summary><pre id="request"></pre></details></article>
 <article><h3>02 / Choices & model output</h3><div id="probabilities"></div><label>Candidate <select id="candidate"></select></label><pre id="candidate-data"></pre><details open><summary>Exact answer for this question</summary><pre id="answer"></pre></details><details><summary>All responses + shortlist</summary><pre id="responses"></pre></details></article>
-<article><h3>03 / What Jev could see</h3><p>Acquired timestamps are distinct from receipt and execution. Evaluator truth never enters these requests.</p><label>View <select id="sensor-view"><option value="delivered">Presented to Jev</option><option value="raw">Original delivered sensor snapshot</option></select></label><pre id="sensors"></pre></article>
+<article><h3>03 / What Jev could see</h3><p>Acquired timestamps are distinct from receipt and execution. Evaluator truth never enters these requests.</p><figure id="pixel-evidence" hidden><img id="pixel-frame" alt="Exact camera pixels used by the marker detector" style="width:100%;height:auto"><figcaption id="pixel-caption"></figcaption></figure><label>View <select id="sensor-view"><option value="delivered">Presented to Jev</option><option value="raw">Original delivered sensor snapshot</option></select></label><pre id="sensors"></pre></article>
 <article><h3>04 / Robot I/O & timeline</h3><pre id="execution"></pre><details><summary>Exact wire records in this decision interval</summary><pre id="wire"></pre></details><details><summary>Goal changes, failures, holds and disturbances</summary><pre id="events"></pre></details></article></div></section>`;
 for (const panel of root.querySelectorAll<HTMLElement>(".panels > article")) {
   const button = document.createElement("button");
@@ -19,6 +19,10 @@ for (const panel of root.querySelectorAll<HTMLElement>(".panels > article")) {
   };
   panel.prepend(button);
 }
+const sensorLink = document.createElement('a');
+sensorLink.href = '?report=/.runtime/experiments/jev-sensors-held-out-v1/report.json';
+sensorLink.textContent = 'Camera + TF-Luna comparison';
+root.querySelector('nav')!.prepend(sensorLink, document.createTextNode(' · '));
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape")
     for (const panel of root.querySelectorAll(".expanded")) {
@@ -127,6 +131,20 @@ async function load() {
     }
     $("summary").replaceChildren(table);
     const tableNote = document.createElement('p'); tableNote.textContent = 'Visibility measures camera geometry, not successful task completion or delivered-detection rate. Questions = questions in each API request. Calls = requests per completed decision. Ranges show observed counts; inspect a decision for its exact request structure.'; $('summary').append(tableNote);
+    if (report.runs.some((r: any) => r.sensorCoverage)) {
+      const coverage = document.createElement('table');
+      coverage.innerHTML = '<caption>Actual sensor evidence available to the controller</caption><thead><tr><th>Flight</th><th>Observed images with marker</th><th>Fresh marker at request</th><th>Fresh valid TF-Luna at request</th></tr></thead><tbody></tbody>';
+      for (const run of report.runs.filter((r: any) => r.sensorCoverage)) {
+        const c = run.sensorCoverage, tr = document.createElement('tr');
+        for (const value of [run.id, `${c.imagesWithMarker} / ${c.uniqueImages}`, `${c.freshMarkerObservations} / ${c.observations}`, c.rangeObservations ? `${c.freshValidRangeObservations} / ${c.rangeObservations}` : 'Not installed']) {
+          const td = document.createElement('td'); td.textContent = value; tr.append(td);
+        }
+        coverage.querySelector('tbody')!.append(tr);
+      }
+      const note = document.createElement('p');
+      note.textContent = 'The camera preprocessing detects only the declared printed roof marker. A blank detection list supplies no target pose or visual obstacle map. Images are counted once; request counts include repeated images and the final cancelled inference. TF-Luna validity requires both a fresh delivery and a usable physical return; it does not identify the hit object.';
+      $('summary').append(coverage, note);
+    }
     $("method-text").replaceChildren();
     for (const text of [
       report.manifest.design,
@@ -391,6 +409,13 @@ function candidate() {
   }
 }
 function sensors() {
+  const camera = selected?.rawObservation?.sensors?.camera;
+  const frame = camera?.value?.frame;
+  $('pixel-evidence').hidden = !frame;
+  if (typeof frame === 'string' && /^frames\/[\w-]+\/camera-\d+\.png$/.test(frame)) {
+    $<HTMLImageElement>('pixel-frame').src = url(frame);
+    $('pixel-caption').textContent = `Actual perception input acquired at ${(camera.acquiredSimMs / 1000).toFixed(2)} s. ${camera.value.detections.length} marker detection(s). Jev receives the computed measurements below, not image pixels. The 3D replay above is evaluator-only.`;
+  } else $('pixel-evidence').hidden = true;
   if (selected)
     json(
       "sensors",

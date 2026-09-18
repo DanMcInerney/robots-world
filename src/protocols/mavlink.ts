@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { lunaMavlink } from './tf-luna.ts';
 import { common, minimal, MavLinkProtocolV2, MavLinkPacketSplitter, MavLinkPacketParser } from 'node-mavlink';
 import type { MavLinkData, MavLinkDataConstructor, MavLinkPacket } from 'node-mavlink';
 import type { Json, Recorder, RobotPort, Vec3 } from '../contracts.ts';
@@ -133,6 +134,11 @@ export class MavlinkAdapter {
         this.trace(vehicle.port.robotId, 'tx', { message: 'HEARTBEAT', decoded: heartbeat, hex: bytes.toString('hex') });
       }
       const description = await vehicle.port.describe();
+      for (const [index, sensor] of description.sensors.entries()) if (sensor.type === 'tf-luna') {
+        const reading = observation.sensors[sensor.id];
+        const message = reading ? lunaMavlink(reading, sensor, index) : null;
+        if (message) { const bytes = vehicle.codec.encode(message); frames.push(bytes); this.trace(vehicle.port.robotId, 'tx', { message: 'DISTANCE_SENSOR', decoded: message, hex: bytes.toString('hex'), acquiredSimMs: reading!.acquiredSimMs }); }
+      }
       const odometry = description.sensors.find(sensor => sensor.type === 'odometry');
       const reading = odometry ? observation.sensors[odometry.id] : undefined;
       if (!reading?.valid || !reading.value || typeof reading.value !== 'object' || Array.isArray(reading.value)) continue;

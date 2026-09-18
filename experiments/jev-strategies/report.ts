@@ -1,4 +1,10 @@
 import assert from "node:assert/strict";
+import { createHash } from 'node:crypto';
+import { readFramePng } from '../../src/devices/pixel-camera.ts';
+import { markerDetector } from '../../src/perception/fiducial.ts';
+import { decodeLuna } from '../../src/devices/tf-luna.ts';
+import { sensorRequest } from '../jev-sensors/controller.ts';
+import type { SensorArm } from '../jev-sensors/profile.ts';
 import { createReadStream } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { createInterface } from "node:readline";
@@ -56,6 +62,7 @@ export async function report(directory: string) {
       packets = 0,
       missingUsage = 0;
     const byId = new Map<string, any>(), portObservations = new Map<number, any>(), portFeedback: any[] = [];
+    const checkedFrames = new Map<string, any>(), detectMarker = result.arm.startsWith('sensor-') ? markerDetector() : undefined;
     for await (const line of createInterface({
       input: createReadStream(resolve(directory, `${result.id}.jsonl`)),
       crlfDelay: Infinity,
@@ -72,15 +79,29 @@ export async function report(directory: string) {
       }
       if (row.kind === "reactive.menu") menu = d;
       if (row.kind === 'reactive.port.observation') {
+        if (detectMarker) {
+          const camera = d.sensors.camera.value;
+          if (camera) {
+            assert(/^frames\/[\w-]+\/camera-\d+\.png$/.test(camera.frame), 'Missing/unsafe original pixel evidence');
+            if (!checkedFrames.has(camera.frame)) {
+              const png = await readFile(resolve(directory, camera.frame));
+              assert.equal(createHash('sha256').update(png).digest('hex'), camera.sha256, 'Camera frame hash differs');
+              assert.deepEqual(detectMarker(readFramePng(png), camera.calibration), camera.detections, 'Camera detections do not reproduce from pixels');
+              checkedFrames.set(camera.frame, structuredClone(camera));
+            } else assert.deepEqual(camera, checkedFrames.get(camera.frame), 'A repeated camera frame changed its sensor evidence');
+          }
+          const value = d.sensors.rangefinder?.value;
+          if (value) { const decoded = decodeLuna(Buffer.from(value.uartHex, 'hex')); for (const key of ['distanceM', 'strength', 'temperatureC', 'valid', 'reason'] as const) assert.deepEqual(value[key], decoded[key], 'Range reading differs from UART packet'); }
+        }
         portObservations.set(d.sequence, d);
         if (portObservations.size > 64) portObservations.delete(portObservations.keys().next().value!);
       }
       if (row.kind === "axes.request") {
         assert.deepEqual(d.rawObservation, portObservations.get(d.rawObservation.sequence), 'Controller request is not based on the observation actually delivered by the port');
         assert.deepEqual(d.rawFeedback, portFeedback, 'Controller feedback differs from actual tool receipts');
-        assert.deepEqual(d.request, axesRequest(d.rawObservation, result.arm as AxesArm, portFeedback), 'Factored request differs from delivered observation');
+        assert.deepEqual(d.request, result.arm.startsWith('sensor-') ? sensorRequest(d.rawObservation, result.arm as SensorArm, portFeedback) : axesRequest(d.rawObservation, result.arm as AxesArm, portFeedback), 'Factored request differs from delivered observation');
         assert.equal(d.source.simMs, d.rawObservation.simMs);
-        assert.equal(d.source.odometryMs, d.rawObservation.sensors.odometry.acquiredSimMs);
+        assert.equal(d.source.odometryMs, d.rawObservation.sensors[manifest.sensorExperiment?.sourceSensor ?? 'odometry'].acquiredSimMs);
         current = { id: d.decisionId, index: decisions.length, simMs: d.source.simMs, source: d.source,
           rawSensors: d.rawObservation, rawObservation: d.rawObservation, candidates: [], offeredCount: COMBINATIONS,
           candidateScope: 'The candidate inspector shows only the composed selection. All 6 complete option sets are in the exact API request; no joint tuples were prefiltered.',
@@ -277,6 +298,7 @@ export async function report(directory: string) {
       "MAVLink applications precede command expiry",
       "Identical target/obstacle trajectory for paired seeds",
     );
+    if (detectMarker) checks.push(`${checkedFrames.size} original camera images hash-checked and detections reproduced from pixels`, 'Range measurements match real UART decoder; sensor-only request builder rejects undeclared evidence');
     runs.push({
       ...result,
       manifest,
@@ -289,6 +311,14 @@ export async function report(directory: string) {
       callLatencies,
       sensorSamples,
       packets,
+      ...(detectMarker ? { sensorCoverage: {
+        observations: decisions.length,
+        uniqueImages: checkedFrames.size,
+        imagesWithMarker: [...checkedFrames.values()].filter(camera => camera.detections.length > 0).length,
+        freshMarkerObservations: decisions.filter(d => d.rawObservation.sensors.camera.valid && d.rawObservation.sensors.camera.value?.detections.length > 0).length,
+        rangeObservations: decisions.filter(d => d.rawObservation.sensors.rangefinder).length,
+        freshValidRangeObservations: decisions.filter(d => d.rawObservation.sensors.rangefinder?.valid && d.rawObservation.sensors.rangefinder.value?.valid).length,
+      } } : {}),
       decisions: decisions.map((d) => ({
         id: d.id,
         index: d.index,

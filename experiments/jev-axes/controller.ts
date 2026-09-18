@@ -64,7 +64,8 @@ export function compose(observation: Observation, request: Request, body: Respon
   return { selections, candidate: { id: Object.values(selections).join('-'), action, motion: 'Direct independent XYZ setpoints', camera: 'Direct heading/pitch increments and zoom', facts: {} } };
 }
 
-export function axesController(arm: AxesArm, key: string, emit: Emit, transport?: (request: Request, signal: AbortSignal) => Promise<Response>) {
+export function axesController(arm: string, key: string, emit: Emit, transport?: (request: Request, signal: AbortSignal) => Promise<Response>, profile?: { request(observation: Observation, feedback: CommandFeedback[]): Request; sourceSensor: string }) {
+  if (!profile && !Object.hasOwn(AXES, arm)) throw new Error('Unknown controller representation');
   const stats = { started: 0, completed: 0, admitted: 0, rejected: 0, errors: 0, cancelled: 0, latencyMs: [] as number[], sourceAgeMs: [] as number[], usage: [] as any[], selectedIds: [] as string[], menuCounts: [] as number[] };
   const controller: Controller = { id: arm, async run(ports: readonly RobotPort[], signal: AbortSignal) {
     if (ports.length !== 1) throw new Error('This experiment requires one robot');
@@ -76,8 +77,8 @@ export function axesController(arm: AxesArm, key: string, emit: Emit, transport?
         const observation = await port.observe();
         if (observation.goal !== goal) { goal = observation.goal; goalVersion++; }
         await port.acknowledge(observation.events.at(-1)?.id ?? 0, observation.inbox.map(p => p.id));
-        const source = { simMs: observation.simMs, odometryMs: observation.sensors.odometry!.acquiredSimMs, goalVersion };
-        const request = axesRequest(observation, arm, feedback), decisionId = randomUUID(), started = performance.now();
+        const source = { simMs: observation.simMs, odometryMs: observation.sensors[profile?.sourceSensor ?? 'odometry']!.acquiredSimMs, goalVersion };
+        const request = profile ? profile.request(observation, feedback) : axesRequest(observation, arm as AxesArm, feedback), decisionId = randomUUID(), started = performance.now();
         stats.started++; stats.menuCounts.push(COMBINATIONS);
         emit('axes.request', { id: decisionId, decisionId, strategy: arm, stage: 'initial', source, rawObservation: observation, rawFeedback: structuredClone(feedback), request });
         let body: Response;
