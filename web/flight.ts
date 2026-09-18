@@ -179,4 +179,3 @@ requestAnimationFrame(frame);
 const reportPath = new URL(location.href).searchParams.get('report');
 
 if (reportPath && /^\/\.runtime\/experiments\/[\w-]+\/replay\.json$/.test(reportPath)) void fetch(reportPath).then(r => { if (!r.ok) throw new Error(`Replay HTTP ${r.status}`); return r.json(); }).then(load).catch(e => { status.textContent = String(e); });
-
