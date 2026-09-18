@@ -6,7 +6,7 @@ import { pathToFileURL } from 'node:url';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { CONTRACT, goalFor, makeMenu, selected, type Arm, type Menu, type ReactiveState, type Relation } from './contract.ts';
 import { BRIEF_SCHEMA, ClaudeJson, CodexJson, decisionInput, jev, parseBrief, type Answer } from './providers.ts';
-import { ReactiveWorld, type Emit } from './world.ts';
+import { ReactiveWorld, type Emit, type SensorExperiment } from './world.ts';
 import type { Controller, RobotPort } from '../../src/contracts.ts';
 import { CAPABILITIES, DEFAULT_CONFIG, experimentConfig, type ExperimentConfig } from './config.ts';
 import { judge, STRATEGIES, type Strategy } from '../jev-strategies/strategies.ts';
@@ -48,7 +48,7 @@ async function prepareBrief(directory: string) {
   } finally { await native?.close(); trace.close(); }
 }
 
-export async function trial(options: { arm: string; seed: number; seconds: number; directory: string; key?: string; phase: string; brief?: string; config?: ExperimentConfig; strategy?: Strategy; maxDecisions?: number; controller?: Controller; controllerSource?: { files: string[] }; connectControllerTrace?: (emit: Emit) => void; fixtureDecision?: (menu: Menu, signal: AbortSignal) => Promise<Answer>; realtime?: boolean }) {
+export async function trial(options: { arm: string; seed: number; seconds: number; directory: string; key?: string; phase: string; brief?: string; config?: ExperimentConfig; strategy?: Strategy; maxDecisions?: number; controller?: Controller; controllerSource?: { files: string[] }; connectControllerTrace?: (emit: Emit) => void; fixtureDecision?: (menu: Menu, signal: AbortSignal) => Promise<Answer>; realtime?: boolean; sensorExperiment?: SensorExperiment }) {
   if (!/^[\w-]+$/.test(options.arm) || !Number.isInteger(options.seed) || !Number.isFinite(options.seconds) || options.seconds < 1 || options.seconds > 90) throw new Error('Invalid trial identity/duration');
   if ((options.fixtureDecision || options.realtime === false) && options.phase !== 'fixture') throw new Error('Synthetic controls or accelerated time require fixture phase');
   if (options.controller && options.phase !== 'fixture' && !options.controllerSource?.files.length) throw new Error('Controller source files required for provenance');
@@ -65,7 +65,8 @@ export async function trial(options: { arm: string; seed: number; seconds: numbe
   const stats = { started: 0, completed: 0, admitted: 0, rejected: 0, errors: 0, cancelled: 0, repairsStarted: 0, repairsCompleted: 0, repairsInstalled: 0, repairsStale: 0, cancelledRepairs: 0, latencyMs: [] as number[], sourceAgeMs: [] as number[], repairLatencyMs: [] as number[], usage: [] as unknown[], cumulativeCostUsd: null as number | null, selectedIds: [] as string[], menuCounts: [] as number[] };
   try {
     options.connectControllerTrace?.(trace.emit);
-    world = await ReactiveWorld.create(seed, trace.emit, seconds * 500, config); const runtime = world;
+    if (options.sensorExperiment && !options.controller) throw new Error('Sensor experiment requires an explicit sensor-only controller');
+    world = await ReactiveWorld.create(seed, trace.emit, seconds * 500, config, options.sensorExperiment); const runtime = world;
     if (!options.controller && !options.fixtureDecision) {
       try {
         if (arm === 'claude-facts') native = await ClaudeJson.create(resolve(directory, 'native', id), trace.emit);
@@ -78,7 +79,7 @@ export async function trial(options: { arm: string; seed: number; seconds: numbe
     const hash = await sourceHash();
     const start = performance.now() - world.world.simMs, setupMs = performance.now() - setupStart;
     trace.emit('reactive.manifest', { id, phase, arm, seed, seconds, runtime: { node: process.version, platform: process.platform, arch: process.arch }, sourceHash: hash, config, capabilities: CAPABILITIES, controllerSources, controllerArrangement: options.controller ? { id: options.controller.id, interface: 'RobotPort: continuous controls and native tools' } : options.fixtureDecision ? 'synthetic mechanics fixture' : 'restricted menu choice', scenario: world.world.scenario, setupMs, initialBrief: advice ?? null,
-      strategy: options.strategy ? STRATEGIES[options.strategy] : null, maxDecisions,
+      strategy: options.strategy ? STRATEGIES[options.strategy] : null, maxDecisions, sensorExperiment: options.sensorExperiment ? { id: options.sensorExperiment.id, sourceSensor: options.sensorExperiment.sourceSensor, envelopeGuard: 'disabled; no global position supplied', sourceAgeField: 'odometryMs legacy trace key contains camera acquisition time' } : null,
       interpretation: phase === 'fixture' ? 'OFFLINE MECHANICS FIXTURE. No AI performance evidence.' : 'Real inference in simplified simulation. Capabilities and controller representation are separate. No evaluator data in decision input.', sourceAgeLimitMs: config.sourceAgeLimitMs, minimumRefreshMs: config.minimumRefreshMs });
     if (options.controller) {
       const port = world.controllerPort(); controllerPort = port;

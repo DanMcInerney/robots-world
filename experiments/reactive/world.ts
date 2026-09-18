@@ -12,6 +12,11 @@ import { forecast, goalFor, type Menu, type ReactiveState, type Relation, type T
 import { DEFAULT_CONFIG, experimentConfig, type ExperimentConfig } from './config.ts';
 
 export type Emit = (kind: string, data: unknown) => void;
+export interface SensorExperiment {
+  id: string;
+  sourceSensor: string;
+  configure(scenario: Scenario, registry: ReturnType<typeof defaultRegistry>, kit: ReturnType<typeof aimedDroneKit>): void;
+}
 const relations: Relation[] = ['left', 'right', 'ahead', 'behind'];
 const opposite: Record<Relation, Relation> = { left: 'right', right: 'left', ahead: 'behind', behind: 'ahead' };
 export function scenarioFor(seed: number, config: ExperimentConfig = DEFAULT_CONFIG): Scenario {
@@ -61,10 +66,15 @@ export class ReactiveWorld {
     } };
     this.wire = new MavlinkAdapter({ ports: [{ port: proxy, systemId: 1 }], record: world.journal.record, simMs: () => world.simMs });
   }
-  static async create(seed: number, emit: Emit = () => {}, switchAtMs = 30000, settings: ExperimentConfig = DEFAULT_CONFIG) {
+  private sensorExperiment?: SensorExperiment;
+  static async create(seed: number, emit: Emit = () => {}, switchAtMs = 30000, settings: ExperimentConfig = DEFAULT_CONFIG, sensors?: SensorExperiment) {
     const config = experimentConfig(settings);
     const registry = defaultRegistry(), kit = aimedDroneKit(); registry.models.set(kit.model.id, kit.model); registry.sensors.set(kit.camera.id, kit.camera); registry.sensors.set(rangeCloud.id, rangeCloud);
-    const instance = new ReactiveWorld(await World.create(scenarioFor(seed, config), registry, 'rapier', new Journal(4000)), emit, () => kit.inspectCamera('drone'), switchAtMs, config);
+    const scenario = scenarioFor(seed, config);
+    sensors?.configure(scenario, registry, kit);
+    if (sensors && config.sensors.cooperativeBeacon) throw new Error('Sensor-only experiment cannot enable cooperative target broadcast');
+    const instance = new ReactiveWorld(await World.create(scenario, registry, 'rapier', new Journal(4000)), emit, () => kit.inspectCamera('drone'), switchAtMs, config);
+    instance.sensorExperiment = sensors;
     for (let i = 0; i < 15; i++) await instance.tick();
     return instance;
   }
@@ -78,6 +88,7 @@ export class ReactiveWorld {
     this.obs = observation;
   }
   state(): ReactiveState {
+    if (this.sensorExperiment) throw new Error('Sensor-only experiment has no legacy odometry/target state');
     const timed = <T>(r: SensorReading, value: T): Timed<T> => ({ acquiredMs: r.acquiredSimMs, receivedMs: r.receivedSimMs, valid: r.valid, value });
     const odom = this.obs.sensors.odometry!, camera = this.obs.sensors.camera!, ranges = this.obs.sensors.ranges!;
     const o = odom.value as unknown as { position: Vec3; linearVelocity: Vec3 };
@@ -112,7 +123,9 @@ export class ReactiveWorld {
     let value: FlightAction;
     try { value = validateAction(action); } catch { return reject('invalid-action'); }
     if (!['position', 'velocity'].includes(value.mode)) return reject('unsupported-mode');
-    if (!forecast(this.state(), value, this.config).safe) return reject('envelope-or-odometry');
+    if (this.sensorExperiment) {
+      if (value.mode !== 'velocity' || Math.hypot(value.x, value.y, value.z) > 2) return reject('actuator-limits');
+    } else if (!forecast(this.state(), value, this.config).safe) return reject('envelope-or-odometry');
     this.admissions++; this.requested = value; this.expiresMs = this.world.simMs + value.duration * 1000;
     this.pending = []; this.commandId++;
     if (this.fallbackReason) this.setFallback('awaiting-delivery');
@@ -130,7 +143,7 @@ export class ReactiveWorld {
         const description = await this.drone.describe();
         description.commands.control!.description += ' Movement lifetime is validForMs (default experiment lifetime, maximum 8000 ms). Supply basedOn.observation or args.observation from an observation actually delivered through this port. Neither background sensing nor a later tool call refreshes an old decision. Admission is not application.';
         const schema = description.commands.control!.schema; schema.properties = { ...(schema.properties as object), observation: { type: 'integer', minimum: 1, description: 'Source observation.sequence (alternative to command.basedOn).' } };
-        description.sensors.push({ id: 'target', type: 'received-cooperative-beacon', hz: 10 });
+        if (!this.sensorExperiment) description.sensors.push({ id: 'target', type: 'received-cooperative-beacon', hz: 10 });
         return description;
       },
       observe: async () => {
@@ -138,8 +151,8 @@ export class ReactiveWorld {
         const observation = await this.drone.observe();
         observation.goal = goalFor(this.relation, this.config);
         const target = this.target;
-        observation.sensors.target = { value: target?.value as unknown as Json ?? null, acquiredSimMs: target?.acquiredMs ?? 0, receivedSimMs: target?.receivedMs ?? 0, valid: !!target && observation.simMs - target.acquiredMs <= 1000, sequence: target?.acquiredMs ?? 0 };
-        sources.set(observation.sequence, { simMs: observation.simMs, odometryMs: observation.sensors.odometry!.acquiredSimMs, goalVersion: this.goalVersion });
+        if (!this.sensorExperiment) observation.sensors.target = { value: target?.value as unknown as Json ?? null, acquiredSimMs: target?.acquiredMs ?? 0, receivedSimMs: target?.receivedMs ?? 0, valid: !!target && observation.simMs - target.acquiredMs <= 1000, sequence: target?.acquiredMs ?? 0 };
+        sources.set(observation.sequence, { simMs: observation.simMs, odometryMs: observation.sensors[this.sensorExperiment?.sourceSensor ?? 'odometry']!.acquiredSimMs, goalVersion: this.goalVersion });
         if (sources.size > 64) sources.delete(sources.keys().next().value!);
         this.emit('reactive.port.observation', observation);
         return observation;
@@ -218,7 +231,7 @@ export class ReactiveWorld {
     this.world.physics.velocity('crossing', vec(-Math.sin(theta) * (desiredY - localY), Math.cos(theta) * (desiredY - localY), 0));
     for (const packet of this.pending.filter(p => p.due <= t)) {
       if (packet.goalVersion !== this.goalVersion || packet.commandId !== this.commandId || packet.expiresMs <= t) continue;
-      if (!forecast(this.state(), packet.camera, this.config, (packet.expiresMs - t) / 1000, 0).safe) { this.guardInterventions++; await this.hold('delivery-envelope-or-odometry'); break; }
+      if (!this.sensorExperiment && !forecast(this.state(), packet.camera, this.config, (packet.expiresMs - t) / 1000, 0).safe) { this.guardInterventions++; await this.hold('delivery-envelope-or-odometry'); break; }
       this.wireCamera = packet.camera; this.wireDeadline = packet.expiresMs; await this.wire.receive(packet.bytes);
       this.emit('reactive.camera.command', { simMs: t, transport: 'local JSON attached to dated MAVLink setpoint', commandId: packet.commandId, expiresMs: packet.expiresMs, remainingMs: packet.expiresMs - t, ...packet.camera });
     }
