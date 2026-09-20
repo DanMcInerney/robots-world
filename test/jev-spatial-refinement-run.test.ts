@@ -1,0 +1,60 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {generateTemporalCases} from '../experiments/jev-spatial-refinement/temporal.ts';
+import {choose,criticalAssertions,criticalOpportunities,assertUnchangedPrefix,gates,verify,validateSelection} from '../experiments/jev-spatial-refinement/run.ts';
+import {digest} from '../experiments/jev-spatial-text/transport.ts';
+import {mkdtemp,mkdir,writeFile} from 'node:fs/promises';
+import {resolve,relative,dirname} from 'node:path';
+
+test('critical temporal assertions count unsupported current, epoch, and acquisition claims independently',()=>{
+  const c=generateTemporalCases().find(c=>!c.meta.epochValid&&c.expected.present_location!.includes('unknown'))!;
+  const valid=Object.fromEntries(Object.entries(c.expected).map(([q,v])=>[q,v[0]!]));
+  assert.deepEqual(criticalAssertions(c,valid),[]);
+  assert.equal(criticalAssertions(c,{...valid,present_location:'left',epoch_join:'valid',old_side:'right',historical_kind:'current_observation',observation_clock:'decision_time'}).length,6);
+  assert(criticalOpportunities(c).includes('historical_kind:invalid-join'));
+});
+test('selection favors compact action-only within one answer, never by confirmation scores',()=>{
+  const geo=Array.from({length:8},(_,i)=>({stage:'geometry',split:'development',arm:`r${i}__${i<4?'action-only':'action-and-forecasts'}`,calls:32,meanBytes:100+i,questions:{action:{correct:i===7?32:i<2?31:29}}}));
+  const temporal=Array.from({length:4},(_,i)=>({stage:'temporal',split:'development',arm:`t${i}`,calls:32,critical:i===0?1:0,correct:i===0?288:280,meanBytes:100+i}));
+  const selected=choose({groups:[...geo,...temporal,{stage:'geometry',split:'confirmation',arm:'irrelevant',correct:9999}]});
+  assert.equal(selected.geometry,'r0__action-only');assert.equal(selected.temporal,'t1');
+  temporal[3]!.correct=281;assert.equal(choose({groups:[...geo,...temporal]}).temporal,'t3');
+  assert.equal(gates({groups:[]},selected).geometry.pass,false);
+  assert.equal(gates({groups:[{stage:'geometry',split:'confirmation',arm:selected.geometry,calls:32,questions:{action:{correct:31}},wrongDirection:1,unnecessaryOutOfView:0}]},selected).geometry.pass,false);
+});
+test('immutable development ledger accepts appends and rejects changed or truncated evidence',()=>{
+  const prefix=Buffer.from('record one\nrecord two\n'),hash=digest(prefix);
+  assertUnchangedPrefix(Buffer.concat([prefix,Buffer.from('confirmation\n')]),prefix,hash);
+  assert.throws(()=>assertUnchangedPrefix(Buffer.from('record one\n'),prefix,hash));
+  assert.throws(()=>assertUnchangedPrefix(Buffer.from('record xxx\nrecord two\n'),prefix,hash));
+  assert.throws(()=>assertUnchangedPrefix(prefix,Buffer.from('changed\n'),hash));
+});
+test('gate paths reject changed live scorer and stale selection while allowing a confirmation suffix',async()=>{
+  const root=await mkdtemp(resolve('.runtime/refinement-integrity-'));
+  const stage=resolve(root,'freezes/fixed'),source=resolve(root,'scorer.ts');
+  const sourcePath=relative(process.cwd(),source).replaceAll('\\','/');
+  const copied=resolve(stage,'source',sourcePath),sourceBytes='export const score = 1;\n';
+  await mkdir(dirname(copied),{recursive:true});await writeFile(copied,sourceBytes);await writeFile(source,sourceBytes);
+  const entries=[{path:sourcePath,sha256:digest(sourceBytes)}],all=Array.from({length:816},(_,i)=>({id:`dev-${i}`,split:'development'})) as any;
+  const caseBytes=JSON.stringify(all)+'\n',plan='frozen plan';
+  await writeFile(resolve(root,'cases.json'),caseBytes);await writeFile(resolve(stage,'plan.md'),plan);
+  await writeFile(resolve(stage,'freeze.json'),JSON.stringify({model:'jev-1.13.0',entries,sourceSha256:digest(JSON.stringify(entries)),manifest:{casesSha256:digest(caseBytes),planSha256:digest(plan)}}));
+  await verify(all,true,root);await writeFile(source,'export const score = 2;\n');
+  await assert.rejects(()=>verify(all,true,root),/Live frozen source changed/);await writeFile(source,sourceBytes);
+  const geo=Array.from({length:8},(_,i)=>({stage:'geometry',split:'development',arm:`g${i}__action-only`,calls:32,meanBytes:100+i,questions:{action:{correct:31}}}));
+  const temporal=Array.from({length:4},(_,i)=>({stage:'temporal',split:'development',arm:`t${i}`,calls:32,critical:0,correct:280,meanBytes:100+i}));
+  const summary={groups:[...geo,...temporal]};
+  const prefix=all.map((c:any)=>JSON.stringify({id:c.id,status:'completed'})).join('\n')+'\n';
+  const selection={...choose(summary),casesSha256:digest(caseBytes),developmentLedgerSha256:digest(prefix),developmentLedgerBytes:Buffer.byteLength(prefix)};
+  const selectionBytes=JSON.stringify(selection)+'\n';
+  await writeFile(resolve(root,'selection.json'),selectionBytes);
+  await writeFile(resolve(root,'selection-seal.json'),JSON.stringify({selectionSha256:digest(selectionBytes)}));
+  await writeFile(resolve(root,'development-ledger.jsonl'),prefix);
+  await writeFile(resolve(root,'requests.jsonl'),prefix+'{"id":"confirmation","status":"completed"}\n');
+  await validateSelection(all,summary,root);
+  await writeFile(resolve(root,'selection.json'),JSON.stringify({...selection,geometry:'stale'}));
+  await assert.rejects(()=>validateSelection(all,summary,root),/Selection bytes changed/);
+  await writeFile(resolve(root,'selection.json'),selectionBytes);
+  await writeFile(resolve(root,'requests.jsonl'),prefix.replace('dev-0','dev-X'));
+  await assert.rejects(()=>validateSelection(all,summary,root),/Development ledger prefix changed/);
+});

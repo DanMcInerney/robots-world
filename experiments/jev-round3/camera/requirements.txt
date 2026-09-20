@@ -1,0 +1,12 @@
+numpy==1.26.4
+pillow==11.3.0
+trimesh==4.8.3
+pyrender==0.1.45
+pyglet==1.5.31
+DracoPy==1.7.0
+PyOpenGL==3.1.0
+freetype-py==2.5.1
+imageio==2.37.4
+networkx==3.6.1
+scipy==1.17.1
+six==1.17.0

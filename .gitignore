@@ -7,3 +7,5 @@ dist/
 *.tsbuildinfo
 .codex/
 .claude/
+__pycache__/
+*.py[cod]

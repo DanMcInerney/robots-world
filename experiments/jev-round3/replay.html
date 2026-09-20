@@ -1,0 +1,334 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>Round 3 · Stereo perception replay</title>
+<style>
+:root{font:15px/1.55 system-ui,sans-serif;color:#e9f1f8;background:#080f18;--panel:#111d2a;--line:#2b3c4e;--muted:#9fb0c3;--mint:#77e4c4;--blue:#92baff;--amber:#ffd08a;--red:#ff9fa9}
+*{box-sizing:border-box}body{margin:0}main{max-width:1500px;margin:auto;padding:28px 32px 56px}button,select,input{font:inherit}button,select{color:inherit;background:#1b2a3c;border:1px solid var(--line);border-radius:7px;padding:9px 12px}button{cursor:pointer}button:hover{border-color:var(--mint)}button:disabled{opacity:.4;cursor:default}select{width:100%;min-width:0}a{color:var(--mint);text-underline-offset:4px}:focus-visible{outline:3px solid var(--blue);outline-offset:3px}[hidden]{display:none!important}.topline,.section-head,.toolbar,.legend,.tags{display:flex;gap:12px;align-items:center;flex-wrap:wrap}.topline,.section-head{justify-content:space-between}.topline nav{display:flex;gap:20px;font-size:13px}.eyebrow{font:700 11px/1.6 ui-monospace,monospace;letter-spacing:.16em;color:var(--mint);text-transform:uppercase}h1{font-size:clamp(33px,4.2vw,54px);line-height:1.08;letter-spacing:-.045em;margin:27px 0 17px;max-width:1000px;font-weight:680}h2{font-size:24px;letter-spacing:-.025em;line-height:1.25;margin:4px 0}h3{font-size:16px;line-height:1.4;margin:0 0 10px}p{margin:0 0 12px}.intro{font-size:17px;color:var(--muted);max-width:970px}.muted,.hint{font-size:13px;color:var(--muted)}.hint{margin:9px 0 0}.scope{border-left:3px solid var(--amber);background:#251f18;padding:15px 18px;margin:23px 0;border-radius:0 8px 8px 0}.scope strong{color:var(--amber)}.scope p{font-size:13px;margin:5px 0 0;white-space:pre-wrap;overflow-wrap:anywhere}.badge{font:12px/1.5 ui-monospace,monospace;border:1px solid var(--line);padding:4px 9px;border-radius:99px;display:inline-block;color:var(--muted);overflow-wrap:anywhere}.badge.amber{color:var(--amber);border-color:#695739}.badge.mint{color:var(--mint);border-color:#3d7064}.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:13px;margin:20px 0}.panel,.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;min-width:0}.card{padding:17px 20px}.metric{font-size:32px;line-height:1.3;letter-spacing:-.03em;font-variant-numeric:tabular-nums}.caption{font-size:12px;color:var(--muted)}.section{margin-top:34px}.section-head{margin-bottom:15px}.pad{padding:20px}.summary-group{margin-top:18px}.summary-group:first-child{margin-top:0}.summary-group h3{color:var(--mint);font-size:14px;overflow-wrap:anywhere}.table-wrap{overflow:auto;border:1px solid var(--line);border-radius:7px}table{border-collapse:collapse;width:100%;font-size:13px;text-align:left}th,td{padding:10px 12px;vertical-align:top;border-bottom:1px solid var(--line);overflow-wrap:anywhere;max-width:680px}tr:last-child>th,tr:last-child>td{border-bottom:0}thead th{color:var(--muted);background:#142333;white-space:nowrap;font-size:12px;font-weight:600}tbody th{font-weight:500;color:var(--muted);min-width:140px}td{font-variant-numeric:tabular-nums;white-space:pre-wrap}details{background:#0c1622;border:1px solid var(--line);border-radius:7px;margin-top:12px;min-width:0}summary{cursor:pointer;padding:11px 13px;font-size:13px;color:var(--muted)}details[open]>summary{border-bottom:1px solid var(--line);color:inherit}pre{white-space:pre-wrap;overflow-wrap:anywhere;font:12px/1.65 ui-monospace,SFMono-Regular,Consolas,monospace;overflow:auto;max-height:470px;margin:0;padding:14px;color:#d7e3ef}.selectors{display:grid;grid-template-columns:1fr 1fr 3fr;gap:13px}label{font-size:12px;color:var(--muted);display:grid;gap:5px}.toolbar{margin-top:16px}.primary{background:var(--mint);border-color:var(--mint);color:#08251d;font-weight:700}.toolbar .speed{margin-left:auto;display:flex;align-items:center;gap:8px}.speed select{width:auto}.scrubber{display:grid;grid-template-columns:1fr auto;gap:16px;align-items:center;margin-top:17px}input[type=range]{width:100%;accent-color:var(--mint);cursor:pointer}.time{font:13px ui-monospace,monospace;min-width:145px;text-align:right;font-variant-numeric:tabular-nums}.frame-heading{margin:22px 0 14px}.images{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:15px}figure{margin:0;overflow:hidden}figcaption{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:11px 14px;font-size:13px}.well{background:#04090e;aspect-ratio:16/9;display:grid;place-items:center;overflow:hidden}.well img{display:block;width:100%;height:100%;object-fit:contain}.empty{text-align:center;color:var(--muted);padding:26px;font-size:13px}.image-path{font:11px/1.4 ui-monospace,monospace;color:var(--muted);padding:9px 13px;overflow-wrap:anywhere;min-height:36px}.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:15px}.evidence-grid{margin-top:16px}.truth{border-color:#67553a}.truth h3{color:var(--amber)}.sensor h3{color:var(--mint)}.text-box{border:1px solid var(--line);border-radius:7px;background:#0b1420;min-height:112px;max-height:320px;margin-top:12px}.readouts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:16px 0}.readout strong{display:block;font-size:23px;font-weight:600;color:var(--amber);font-variant-numeric:tabular-nums;margin-top:3px}.arms{margin-top:16px}.arms thead th:first-child{min-width:170px}.arms tbody th{color:var(--mint)}.arms tbody tr:nth-child(2) th{color:var(--blue)}.plot-head{display:flex;align-items:end;justify-content:space-between;gap:15px;flex-wrap:wrap}.plot-head label{min-width:255px}.legend{font-size:12px;color:var(--muted);margin:15px 0 7px;gap:18px}.swatch{display:inline-block;width:17px;height:3px;vertical-align:middle;margin-right:6px;background:var(--mint)}.swatch.blue{background:var(--blue)}.swatch.amber{background:var(--amber)}canvas{display:block;width:100%;height:285px;cursor:crosshair}.plot-note{margin-top:8px}.errors{color:var(--red);border-left:3px solid var(--red);padding:10px 14px;background:#281c24;margin-top:14px;white-space:pre-wrap;font-size:13px}.pending{color:var(--amber)}.probe-picker{margin-top:15px}.probe-grid{margin-top:15px}.probe-output{font-size:14px;min-height:100px}.nowrap{white-space:nowrap}footer{border-top:1px solid var(--line);margin-top:34px;padding-top:18px;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--muted)}
+@media(max-width:1000px){.selectors{grid-template-columns:1fr 1fr}.selectors label:last-child{grid-column:1/-1}.grid2{grid-template-columns:1fr}.readouts{margin-bottom:0}}
+@media(max-width:650px){main{padding:20px 15px 40px}.stats{grid-template-columns:repeat(2,minmax(0,1fr))}.images{grid-template-columns:1fr}.pad{padding:15px}.scrubber{grid-template-columns:1fr}.time{text-align:left}.toolbar .speed{margin-left:0}.readouts{grid-template-columns:1fr}.topline nav{gap:13px}.plot-head label{width:100%;min-width:0}canvas{height:250px}.caption{font-size:11px}.card{padding:14px}}
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div class="topline"><span class="eyebrow">Jev evidence lab / Round 03</span><nav aria-label="Evidence navigation"><a href="#replay">Frame replay</a><a href="#findings">Findings</a><a id="rawLink" href="./replay.json">Raw evidence ↗</a></nav></div>
+    <h1 id="title">Stereo perception,<br>one recorded frame at a time.</h1>
+    <p class="intro">Inspect synchronized camera inputs, both depth-association arms and their recorded outcomes. Evaluator truth stays visibly separate from the sensor evidence and exact text delivered to Jev.</p>
+    <div class="scope"><strong>Recorded 3D perception pilot · no flight qualification claim.</strong><p id="scope">Awaiting the recorded experiment scope.</p></div>
+    <div class="topline"><p id="loadStatus" class="muted" role="status">Loading ./replay.json…</p><div class="toolbar" style="margin:0"><span id="runStatus" class="badge amber">Pending evidence</span><button id="reload" type="button">Reload evidence</button></div></div>
+    <div class="stats" aria-label="Counts from the loaded evidence file">
+      <div class="card"><div class="caption">Recorded routes</div><div id="routeCount" class="metric">—</div><div class="caption" id="splitCounts">Development / confirmation as recorded</div></div>
+      <div class="card"><div class="caption">Acquired stereo frames</div><div id="frameCount" class="metric">—</div><div class="caption">Frames are correlated within each route</div></div>
+      <div class="card"><div class="caption">Frames with perception records</div><div id="perceptionCount" class="metric">—</div><div class="caption">Record presence does not mean usable depth</div></div>
+      <div class="card"><div class="caption">Recorded interpretation probes</div><div id="probeCount" class="metric">—</div><div class="caption">Probe answers do not establish executed motion</div></div>
+    </div>
+  </header>
+
+  <section id="findings" class="section" aria-labelledby="findingsHeading">
+    <div class="section-head"><div><div class="eyebrow">01 / Outcomes & boundaries</div><h2 id="findingsHeading">Recorded findings</h2></div><span class="badge">Original groups and denominators retained</span></div>
+    <div class="panel pad"><div id="summaryTables"><p class="muted">No summary loaded.</p></div><details><summary>Full outcome summary · exact JSON</summary><pre id="summaryJson"></pre></details></div>
+    <details><summary>Provenance, frozen settings, scope and other experiment metadata</summary><pre id="provenanceJson"></pre></details>
+  </section>
+
+  <section id="replay" class="section" aria-labelledby="replayHeading">
+    <div class="section-head"><div><div class="eyebrow">02 / Matched inputs</div><h2 id="replayHeading">Route & frame replay</h2></div><span id="selectionCount" class="badge">Awaiting routes</span></div>
+    <div class="panel pad">
+      <div class="selectors">
+        <label for="family">Scene family<select id="family" disabled><option value="">All families</option></select></label>
+        <label for="split">Evidence split<select id="split" disabled><option value="">All splits</option></select></label>
+        <label for="route">Recorded route<select id="route" disabled><option>No routes loaded</option></select></label>
+      </div>
+      <div class="toolbar"><button id="previous" type="button" disabled aria-label="Previous frame">‹ Frame</button><button id="play" type="button" class="primary" disabled aria-pressed="false">Play at 10 Hz</button><button id="next" type="button" disabled aria-label="Next frame">Frame ›</button><button id="resetFilters" type="button">Reset filters</button><label class="speed" for="speed">Replay speed<select id="speed"><option value="0.25">¼×</option><option value="0.5">½×</option><option value="1" selected>1×</option><option value="2">2×</option></select></label></div>
+      <div class="scrubber"><input id="scrubber" type="range" min="0" max="0" value="0" step="1" aria-label="Recorded frame" disabled><output id="framePosition" class="time">No frame selected</output></div>
+      <p class="hint">Playback follows recorded acquisition intervals (nominal 10 Hz). Missing or non-increasing timestamps use a labelled 100 ms replay fallback. Playback speed is not measured pipeline throughput. Images are loaded as one matching frame; unavailable assets remain explicit.</p>
+    </div>
+    <div id="routeEmpty" class="empty">Recorded routes will appear here when evidence is available.</div>
+    <div id="frameBody" hidden>
+      <div class="section-head frame-heading"><div><h3 id="frameTitle"></h3><div id="frameTags" class="tags"></div></div><span id="assetStatus" class="muted" role="status"></span></div>
+      <div class="images">
+        <figure class="panel"><figcaption><strong>Left camera · RGB input</strong><span class="badge mint">Sensor</span></figcaption><div class="well"><img id="leftImage" alt="Recorded left camera image" hidden><div id="leftEmpty" class="empty">No image recorded</div></div><div id="leftPath" class="image-path"></div></figure>
+        <figure class="panel"><figcaption><strong>Right camera · synchronized pair</strong><span class="badge mint">Sensor</span></figcaption><div class="well"><img id="rightImage" alt="Recorded right camera image" hidden><div id="rightEmpty" class="empty">No image recorded</div></div><div id="rightPath" class="image-path"></div></figure>
+        <figure class="panel"><figcaption><strong>Detection / mask overlay</strong><span class="badge">Derived perception</span></figcaption><div class="well"><img id="overlayImage" alt="Recorded detector mask overlay" hidden><div id="overlayEmpty" class="empty">No overlay recorded</div></div><div id="overlayPath" class="image-path"></div></figure>
+        <figure class="panel"><figcaption><strong>Stereo depth visualization</strong><span class="badge">Derived perception</span></figcaption><div class="well"><img id="depthImage" alt="Recorded stereo depth visualization" hidden><div id="depthEmpty" class="empty">No depth image recorded</div></div><div id="depthPath" class="image-path"></div></figure>
+      </div>
+      <div id="frameErrors" class="errors" hidden></div>
+
+      <div class="grid2 evidence-grid">
+        <div class="panel pad sensor"><div class="section-head"><h3>Sensor-derived estimates</h3><span id="targetStatus" class="badge mint">Target status unrecorded</span></div><p class="muted">Both arms use the saved frame. Unknown values remain unknown; valid depth support is not an accuracy score.</p>
+          <div class="table-wrap arms"><table><thead><tr><th scope="col">Association arm</th><th scope="col">Estimate</th><th scope="col">Robust nearest proxy</th><th scope="col">Valid fraction</th><th scope="col">Recorded status</th></tr></thead><tbody id="armRows"></tbody></table></div>
+          <details><summary>Perception output and timing · exact JSON</summary><pre id="perceptionJson"></pre></details>
+        </div>
+        <div class="panel pad truth"><h3>Evaluator-only reference</h3><p class="muted">Private rendered target-surface geometry, shown for inspection and scoring. These values are not delivered sensor measurements.</p><div class="readouts"><div class="readout"><span class="caption">Median visible range</span><strong id="truthMedian">Unknown</strong></div><div class="readout"><span class="caption">Nearest visible range</span><strong id="truthNearest">Unknown</strong></div><div class="readout"><span class="caption">Visible target pixels</span><strong id="truthPixels">Unknown</strong></div></div><details><summary>Evaluator-only frame record · exact JSON</summary><pre id="evaluatorJson"></pre></details></div>
+      </div>
+
+      <div class="panel pad section" style="margin-top:16px">
+        <div class="plot-head"><div><h3>Range across the selected route</h3><p class="muted" style="margin:0">Click the plot to inspect a recorded frame. Missing values break the line.</p></div><label for="rangeMode">Displayed statistic<select id="rangeMode"><option value="median">Arm estimate / evaluator median</option><option value="nearest">Robust nearest proxy / evaluator nearest</option></select></label></div>
+        <div class="legend"><span><i class="swatch"></i>Bounding-box arm</span><span><i class="swatch blue"></i>Mask arm</span><span><i class="swatch amber"></i>Evaluator truth · private</span></div>
+        <canvas id="rangePlot" role="img" aria-label="Route ranges will appear when recorded values are available"></canvas>
+        <p id="plotNote" class="muted plot-note"></p>
+      </div>
+
+      <div class="grid2 evidence-grid">
+        <div class="panel pad sensor"><h3>Exact delivered sensor text</h3><p class="muted">Only text explicitly saved as delivered appears here. Estimates and evaluator values are never assembled into a substitute observation.</p><pre id="deliveredText" class="text-box">No delivered sensor text recorded for this frame.</pre></div>
+        <div class="panel pad"><h3>Recorded answer & actuator receipts</h3><p class="muted">An answer, admission and completed motion are distinct events. Missing records do not imply an action was executed.</p><details><summary>Frame-linked answer</summary><pre id="answerJson"></pre></details><details><summary>Frame-linked actuator receipts</summary><pre id="receiptsJson"></pre></details><details><summary>Frame timing · acquisition, processing and delivery as recorded</summary><pre id="timingJson"></pre></details></div>
+      </div>
+      <details><summary>Selected frame · full JSON, including unrecognized fields</summary><pre id="frameJson"></pre></details>
+      <details><summary>Selected route metadata · full JSON, excluding frame array</summary><pre id="routeJson"></pre></details>
+    </div>
+  </section>
+
+  <section id="probes" class="section" aria-labelledby="probesHeading">
+    <div class="section-head"><div><div class="eyebrow">03 / Interpretation evidence</div><h2 id="probesHeading">Recorded Jev probes</h2></div><span class="badge amber">Answers alone are not flight results</span></div>
+    <div class="panel pad"><p class="muted">All saved probes are available independently of the route filters. Raw requests, answers and scores retain their original field names; no result is inferred from confidence.</p><label for="probe" class="probe-picker">Saved probe<select id="probe" disabled><option>No probes recorded</option></select></label><div id="probeEmpty" class="empty">No probes recorded. Interpretation outcomes are pending or outside this evidence file.</div><div id="probeBody" hidden><div class="grid2 probe-grid"><div class="sensor"><h3>Exact recorded input / request</h3><pre id="probeInput" class="text-box probe-output"></pre></div><div><h3>Exact recorded answer / response</h3><pre id="probeAnswer" class="text-box probe-output"></pre></div></div><details><summary>Probe metadata, evaluation and timing · complete original record</summary><pre id="probeJson"></pre></details></div></div>
+  </section>
+  <footer><span>Read-only local replay · no external dependencies · missing evidence remains unreported</span><a id="footerRawLink" href="./replay.json">Complete replay.json ↗</a></footer>
+</main>
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+const list = value => Array.isArray(value) ? value : [];
+const isObject = value => value !== null && typeof value === 'object' && !Array.isArray(value);
+const finite = value => typeof value === 'number' && Number.isFinite(value);
+const present = value => value !== undefined && value !== null;
+const json = value => value === undefined ? 'Not recorded' : JSON.stringify(value, null, 2);
+const display = value => typeof value === 'string' ? value : json(value);
+const fmt = value => finite(value) ? new Intl.NumberFormat('en', {maximumFractionDigits:3}).format(value) : 'Unknown';
+const metres = value => finite(value) ? `${fmt(value)} m` : 'Unknown';
+const setText = (id, value) => { $(id).textContent = value; };
+const exact = (id, value) => setText(id, json(value));
+const make = (tag, text, className) => { const node = document.createElement(tag); if (present(text)) node.textContent = text; if (className) node.className = className; return node; };
+const label = value => String(value).replace(/([a-z0-9])([A-Z])/g, '$1 $2').replace(/[_-]+/g, ' ');
+const omit = (value, keys) => Object.fromEntries(Object.entries(isObject(value) ? value : {}).filter(([key]) => !keys.includes(key)));
+let data = {}, routes = [], route = null, frameIndex = 0, revision = 0, loadRevision = 0;
+let playing = false, timer = null, playbackRevision = 0, plotGeometry = null;
+const sourceUrl = new URL('./replay.json', location.href);
+
+function addOption(select, value, text) { const node = make('option', text); node.value = String(value); select.append(node); }
+function addBadge(text, kind = '') { $('frameTags').append(make('span', text, `badge ${kind}`)); }
+function fillFilter(id, values, allLabel) {
+  const select = $(id), previous = select.value;
+  select.replaceChildren(); addOption(select, '', allLabel);
+  [...new Set(values.filter(present).map(String))].sort((a,b) => a.localeCompare(b, undefined, {numeric:true})).forEach(value => addOption(select, value, value));
+  if ([...select.options].some(option => option.value === previous)) select.value = previous;
+  select.disabled = select.options.length < 2;
+}
+function scalarTable(entries) {
+  const wrapper = make('div', null, 'table-wrap'), table = make('table'), body = make('tbody');
+  for (const [key, value] of entries) { const row = make('tr'), heading = make('th', label(key)); heading.scope = 'row'; row.append(heading, make('td', display(value))); body.append(row); }
+  table.append(body); wrapper.append(table); return wrapper;
+}
+function renderSummary(value) {
+  const host = $('summaryTables'); host.replaceChildren();
+  if (!present(value) || (isObject(value) && !Object.keys(value).length)) { host.append(make('p', 'No outcome summary recorded. Results remain pending; loaded images alone do not establish a passed gate.', 'muted pending')); return; }
+  let rowBudget = 400;
+  function visit(item, path, depth) {
+    if (rowBudget <= 0) return;
+    const group = make('div', null, 'summary-group');
+    if (path) group.append(make('h3', path));
+    if (Array.isArray(item) && item.length && item.every(isObject)) {
+      const columns = [...new Set(item.flatMap(row => Object.keys(row)))];
+      if (columns.length <= 12) {
+        const wrapper = make('div', null, 'table-wrap'), table = make('table'), head = make('thead'), tr = make('tr'), body = make('tbody');
+        columns.forEach(key => { const th = make('th', label(key)); th.scope = 'col'; tr.append(th); }); head.append(tr);
+        item.slice(0, rowBudget).forEach(row => { const tr = make('tr'); columns.forEach(key => tr.append(make('td', display(row[key])))); body.append(tr); });
+        rowBudget -= item.length; table.append(head, body); wrapper.append(table); group.append(wrapper); host.append(group); return;
+      }
+    }
+    if (isObject(item) && depth < 5) {
+      const simple = Object.entries(item).filter(([,child]) => !isObject(child) && (!Array.isArray(child) || child.every(v => !isObject(v) && !Array.isArray(v))));
+      if (simple.length) { group.append(scalarTable(simple.slice(0, rowBudget))); rowBudget -= simple.length; host.append(group); }
+      for (const [key, child] of Object.entries(item)) if (!simple.some(([simpleKey]) => simpleKey === key)) visit(child, path ? `${path} / ${label(key)}` : label(key), depth + 1);
+    } else { group.append(scalarTable([['Recorded value', item]])); rowBudget--; host.append(group); }
+  }
+  visit(value, '', 0);
+  if (rowBudget <= 0) host.append(make('p', 'The table preview is limited to 400 rows. The complete summary is retained below.', 'hint'));
+}
+
+function overview() {
+  const allRoutes = list(data.routes), allFrames = allRoutes.flatMap(r => list(r.frames)), probes = list(data.probes);
+  if (typeof data.title === 'string' && data.title.trim()) { setText('title', data.title); document.title = data.title; }
+  setText('scope', present(data.scope) ? display(data.scope) : 'No experiment scope recorded. Do not infer completed tests from the presence of this viewer.');
+  setText('runStatus', present(data.status) ? `Recorded status: ${display(data.status)}` : 'Status not recorded');
+  setText('routeCount', allRoutes.length); setText('frameCount', allFrames.length); setText('perceptionCount', allFrames.filter(f => isObject(f.perception)).length); setText('probeCount', probes.length);
+  const splits = new Map(); allRoutes.forEach(r => { const key = present(r.split) ? String(r.split) : 'Unspecified'; splits.set(key, (splits.get(key) || 0) + 1); });
+  setText('splitCounts', [...splits].map(([key,count]) => `${key}: ${count}`).join(' · ') || 'No routes recorded');
+  renderSummary(data.summary); exact('summaryJson', data.summary); exact('provenanceJson', omit(data, ['summary', 'routes', 'probes']));
+  fillFilter('family', allRoutes.map(r => r.family), 'All families'); fillFilter('split', allRoutes.map(r => r.split), 'All splits');
+  const probeSelect = $('probe'); probeSelect.replaceChildren();
+  probes.forEach((probe,index) => addOption(probeSelect, index, [probe.id || `Probe ${index + 1}`, probe.routeId, probe.frameId, probe.arm, probe.split, probe.status].filter(present).map(display).join(' · ')));
+  probeSelect.disabled = !probes.length; if (!probes.length) addOption(probeSelect, '', 'No probes recorded');
+  showProbe(); filterRoutes();
+}
+function filterRoutes() {
+  pause(); const previousId = route?.id;
+  routes = list(data.routes).filter(r => (!$('family').value || String(r.family) === $('family').value) && (!$('split').value || String(r.split) === $('split').value));
+  $('route').replaceChildren();
+  routes.forEach((r,index) => addOption($('route'), index, `${r.id || `Route ${index + 1}`} · ${r.family ?? 'family unrecorded'} · ${r.split ?? 'split unrecorded'} · ${list(r.frames).length} frames`));
+  $('route').disabled = !routes.length;
+  if (!routes.length) addOption($('route'), '', 'No matching routes');
+  const oldIndex = routes.findIndex(r => r.id === previousId); $('route').value = String(Math.max(0, oldIndex));
+  setText('selectionCount', `${routes.length} of ${list(data.routes).length} routes`); selectRoute();
+}
+function selectRoute() {
+  pause(); route = routes[Number($('route').value)] || null; frameIndex = 0;
+  const frames = list(route?.frames); $('scrubber').max = String(Math.max(0, frames.length - 1));
+  $('scrubber').disabled = !frames.length; $('frameBody').hidden = !frames.length; $('routeEmpty').hidden = !!frames.length;
+  setText('routeEmpty', route ? 'This route contains no recorded frames. Its results remain unreported.' : list(data.routes).length ? 'No routes match these filters. Reset filters to inspect all evidence.' : 'No camera routes recorded. Capture and perception outcomes remain pending.');
+  exact('routeJson', omit(route, ['frames'])); renderFrame();
+}
+function safeImageUrl(path) {
+  if (typeof path !== 'string' || !path.trim()) return null;
+  const normalized = path.replace(/\\/g, '/');
+  if (/^(?:[a-z][a-z0-9+.-]*:|\/)/i.test(normalized)) return null;
+  try { const url = new URL(normalized, sourceUrl); return url.origin === sourceUrl.origin && url.pathname.startsWith(new URL('.', sourceUrl).pathname) ? url.href : null; } catch { return null; }
+}
+function loadImage(kind, path) {
+  const img = $(kind + 'Image'), empty = $(kind + 'Empty'), url = safeImageUrl(path);
+  img.hidden = true; img.removeAttribute('src'); empty.hidden = false;
+  setText(kind + 'Path', present(path) ? display(path) : 'No image path recorded');
+  empty.textContent = url ? 'Loading matching frame…' : present(path) ? 'Invalid image path; expected a local path relative to this replay.' : 'No image recorded for this frame.';
+  if (!url) return Promise.resolve({kind, url:null, ok:false, absent:!present(path)});
+  return new Promise(resolve => {
+    const candidate = new Image(); let settled = false;
+    const finish = ok => { if (settled) return; settled = true; clearTimeout(timeout); candidate.onload = null; candidate.onerror = null; resolve({kind,url,ok}); };
+    const timeout = setTimeout(() => finish(false), 8000);
+    candidate.onload = () => finish(true); candidate.onerror = () => finish(false); candidate.src = url;
+  });
+}
+function armRow(name, value) {
+  const row = make('tr'), heading = make('th', name); heading.scope = 'row';
+  row.append(heading, make('td', metres(value?.estimateM)), make('td', metres(value?.robustNearestProxyM)), make('td', finite(value?.validFraction) ? `${fmt(value.validFraction * 100)}%` : 'Unknown'), make('td', present(value?.status) ? display(value.status) : 'Not recorded'));
+  return row;
+}
+function currentFrame() { return list(route?.frames)[frameIndex]; }
+function updateControls() {
+  const frames = list(route?.frames), frame = currentFrame();
+  $('scrubber').value = String(frameIndex); $('previous').disabled = !frame || frameIndex === 0; $('next').disabled = !frame || frameIndex >= frames.length - 1; $('play').disabled = frames.length < 2;
+  $('scrubber').setAttribute('aria-valuetext', frame ? `Frame ${frameIndex + 1} of ${frames.length}, ${finite(frame.atMs) ? fmt(frame.atMs / 1000) + ' seconds acquired' : 'acquisition timestamp not recorded'}` : 'No recorded frame');
+  setText('framePosition', frame ? `${frameIndex + 1} / ${frames.length} · ${finite(frame.atMs) ? `${fmt(frame.atMs / 1000)} s` : 'time unknown'}` : 'No frame selected');
+}
+async function renderFrame() {
+  const token = ++revision, frame = currentFrame(); updateControls(); if (!frame) return;
+  setText('frameTitle', `${route.id ?? 'Recorded route'} / ${frame.id ?? `frame ${frameIndex + 1}`}`); $('frameTags').replaceChildren();
+  addBadge(`Family: ${route.family ?? 'not recorded'}`); addBadge(`Split: ${route.split ?? 'not recorded'}`); addBadge(finite(frame.atMs) ? `Acquired: ${fmt(frame.atMs)} ms` : 'Acquisition time not recorded', finite(frame.atMs) ? '' : 'amber');
+  if (frameIndex < list(route.frames).length - 1 && !recordedInterval(frameIndex)) addBadge('Next interval: 100 ms replay fallback', 'amber');
+  const perception = isObject(frame.perception) ? frame.perception : {}, evaluator = isObject(frame.evaluator) ? frame.evaluator : {};
+  $('armRows').replaceChildren(armRow('Bounding-box median', perception.arms?.bbox), armRow('Mask foreground', perception.arms?.mask));
+  setText('targetStatus', `Target: ${present(perception.targetStatus) ? display(perception.targetStatus) : 'status not recorded'}`);
+  setText('truthMedian', metres(evaluator.medianVisibleRangeM)); setText('truthNearest', metres(evaluator.nearestVisibleRangeM)); setText('truthPixels', fmt(evaluator.visiblePixels));
+  exact('perceptionJson', frame.perception); exact('evaluatorJson', frame.evaluator); exact('frameJson', frame);
+  exact('answerJson', frame.answer); exact('receiptsJson', frame.receipts); exact('timingJson', {atMs:frame.atMs, timingMs:frame.timingMs, perceptionTimingMs:perception.timingMs});
+  const delivered = frame.deliveredText ?? perception.deliveredText ?? perception.text;
+  setText('deliveredText', present(delivered) ? display(delivered) : 'No delivered sensor text recorded for this frame.');
+  const errors = list(frame.errors); $('frameErrors').hidden = !errors.length; setText('frameErrors', errors.map(display).join('\n'));
+  drawPlot(); setText('assetStatus', 'Loading matching frame assets…');
+  const results = await Promise.all(['left','right','overlay','depth'].map(kind => loadImage(kind, frame[kind])));
+  if (token !== revision) return;
+  let available = 0;
+  for (const result of results) {
+    const img = $(result.kind + 'Image'), empty = $(result.kind + 'Empty');
+    if (result.ok) { img.src = result.url; img.alt = `${result.kind} · route ${route.id ?? 'unrecorded'} · frame ${frame.id ?? frameIndex + 1} · acquired ${finite(frame.atMs) ? frame.atMs + ' ms' : 'time unknown'}`; img.hidden = false; empty.hidden = true; available++; }
+    else if (result.url) empty.textContent = 'Saved image unavailable or timed out. No substitute image is shown.';
+  }
+  setText('assetStatus', `${available} / 4 frame assets available`);
+}
+function recordedInterval(index) {
+  const frames = list(route?.frames), a = frames[index]?.atMs, b = frames[index + 1]?.atMs;
+  return finite(a) && finite(b) && b > a ? b - a : null;
+}
+function pause() {
+  playing = false; playbackRevision++; clearTimeout(timer); timer = null;
+  $('play').setAttribute('aria-pressed', 'false'); setText('play', 'Play at 10 Hz');
+}
+async function play() {
+  if (playing) { pause(); return; }
+  const frames = list(route?.frames); if (frames.length < 2) return;
+  playing = true; const token = ++playbackRevision; $('play').setAttribute('aria-pressed', 'true'); setText('play', 'Pause replay');
+  if (frameIndex >= frames.length - 1) frameIndex = 0;
+  async function tick() {
+    if (!playing || token !== playbackRevision) return;
+    const began = performance.now(); await renderFrame();
+    if (!playing || token !== playbackRevision) return;
+    if (frameIndex >= frames.length - 1) { pause(); return; }
+    const delay = (recordedInterval(frameIndex) ?? 100) / Number($('speed').value);
+    timer = setTimeout(() => { frameIndex++; tick(); }, Math.max(0, delay - (performance.now() - began)));
+  }
+  tick();
+}
+function seek(index) { pause(); frameIndex = Math.max(0, Math.min(list(route?.frames).length - 1, index)); renderFrame(); }
+
+function drawPlot() {
+  const canvas = $('rangePlot'), frames = list(route?.frames); if (!frames.length || $('frameBody').hidden) return;
+  const width = canvas.clientWidth, height = canvas.clientHeight; if (!width || !height) return;
+  const dpr = Math.min(window.devicePixelRatio || 1, 3); canvas.width = Math.round(width * dpr); canvas.height = Math.round(height * dpr);
+  const ctx = canvas.getContext('2d'); ctx.scale(dpr, dpr); ctx.clearRect(0, 0, width, height);
+  const nearest = $('rangeMode').value === 'nearest', armField = nearest ? 'robustNearestProxyM' : 'estimateM', truthField = nearest ? 'nearestVisibleRangeM' : 'medianVisibleRangeM';
+  const series = [{name:'Bounding-box arm',color:'#77e4c4',values:frames.map(f => f.perception?.arms?.bbox?.[armField])}, {name:'Mask arm',color:'#92baff',values:frames.map(f => f.perception?.arms?.mask?.[armField])}, {name:'Evaluator truth',color:'#ffd08a',values:frames.map(f => f.evaluator?.[truthField])}];
+  const allValues = series.flatMap(s => s.values).filter(finite), left = 52, right = width - 15, top = 20, bottom = height - 40;
+  const validTimes = frames.every((f,i) => finite(f.atMs) && (i === 0 || f.atMs >= frames[i - 1].atMs)) && (frames.length === 1 || frames.at(-1).atMs > frames[0].atMs);
+  const times = frames.map((f,i) => validTimes ? f.atMs / 1000 : i / 10), minTime = times[0], maxTime = times.at(-1), spanTime = Math.max(.1, maxTime - minTime);
+  const minValue = Math.min(0, ...allValues), maxValue = Math.max(1, ...allValues) * 1.1;
+  const x = time => left + (time - minTime) / spanTime * (right - left), y = value => bottom - (value - minValue) / (maxValue - minValue) * (bottom - top);
+  plotGeometry = {left,right,times,minTime,spanTime}; ctx.font = '11px system-ui, sans-serif'; ctx.lineWidth = 1;
+  for (let i = 0; i <= 4; i++) {
+    const value = minValue + (maxValue - minValue) * i / 4, yy = y(value);
+    ctx.strokeStyle = '#293b4f'; ctx.beginPath(); ctx.moveTo(left,yy); ctx.lineTo(right,yy); ctx.stroke(); ctx.fillStyle = '#9fb0c3'; ctx.textAlign = 'right'; ctx.fillText(fmt(value), left - 9, yy + 4);
+    const time = minTime + spanTime * i / 4, xx = x(time); ctx.textAlign = 'center'; ctx.fillText(fmt(time), xx, bottom + 20);
+  }
+  ctx.fillStyle = '#9fb0c3'; ctx.textAlign = 'left'; ctx.fillText('m', 15, 17); ctx.textAlign = 'right'; ctx.fillText(validTimes ? 'acquisition time (s)' : 'frame index / 10 (s, fallback)', right, height - 3);
+  for (const s of [...series].reverse()) {
+    ctx.strokeStyle = s.color; ctx.fillStyle = s.color; ctx.lineWidth = 2; ctx.setLineDash(s.name === 'Evaluator truth' ? [5,4] : []); ctx.beginPath(); let connected = false;
+    s.values.forEach((value,index) => { if (!finite(value)) { connected = false; return; } if (connected) ctx.lineTo(x(times[index]),y(value)); else ctx.moveTo(x(times[index]),y(value)); connected = true; }); ctx.stroke(); ctx.setLineDash([]);
+    s.values.forEach((value,index) => { if (!finite(value)) return; ctx.beginPath(); ctx.arc(x(times[index]),y(value), index === frameIndex ? 4 : 1.4, 0, Math.PI * 2); ctx.fill(); });
+  }
+  ctx.strokeStyle = '#d9e5f3'; ctx.lineWidth = 1; ctx.setLineDash([3,4]); ctx.beginPath(); ctx.moveTo(x(times[frameIndex]),top); ctx.lineTo(x(times[frameIndex]),bottom); ctx.stroke(); ctx.setLineDash([]);
+  if (!allValues.length) { ctx.fillStyle = '#9fb0c3'; ctx.textAlign = 'center'; ctx.fillText('No finite range values recorded for this route.', (left + right) / 2, (top + bottom) / 2); }
+  const availability = series.map(s => `${s.name}: ${s.values.filter(finite).length}/${frames.length} recorded values`).join(' · ');
+  const interpretation = nearest ? 'The robust nearest proxy and true nearest visible surface are distinct statistics; this plot does not establish calibrated error coverage.' : 'Arm estimates are shown against the recorded median visible target range. Evaluator truth is never a controller input.';
+  setText('plotNote', `${interpretation} ${availability}${validTimes ? '' : ' · Plot time uses a 10 Hz index fallback because acquisition timestamps are incomplete or unordered.'}`);
+  canvas.setAttribute('aria-label', `${nearest ? 'Nearest surface proxy' : 'Range estimate'} over route ${route.id ?? ''}. ${availability}. Selected frame ${frameIndex + 1}: ${series.map(s => `${s.name} ${metres(s.values[frameIndex])}`).join('; ')}. Use the frame slider or arrow buttons to inspect exact values.`);
+}
+function showProbe() {
+  const probe = list(data.probes)[Number($('probe').value)]; $('probeEmpty').hidden = !!probe; $('probeBody').hidden = !probe; if (!probe) return;
+  const input = probe.deliveredText ?? probe.request ?? probe.input ?? probe.observation ?? probe.state;
+  const answer = probe.answer ?? probe.response ?? probe.output;
+  setText('probeInput', present(input) ? display(input) : 'No input in recognized fields. Inspect the original record below.');
+  setText('probeAnswer', present(answer) ? display(answer) : 'No answer in recognized fields. Inspect the original record below.'); exact('probeJson', probe);
+}
+async function load() {
+  pause(); const token = ++loadRevision; revision++; $('reload').disabled = true; setText('loadStatus', 'Loading ./replay.json…');
+  try {
+    const response = await fetch(sourceUrl, {cache:'no-store'}); if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const loaded = await response.json();
+    if (!isObject(loaded) || (present(loaded.routes) && !Array.isArray(loaded.routes))) throw new Error('Expected a JSON object with an optional routes array.');
+    if (list(loaded.routes).some(r => !isObject(r) || list(r.frames).some(f => !isObject(f))) || list(loaded.probes).some(p => !isObject(p))) throw new Error('Each recorded route, frame and probe must be a JSON object.');
+    if (token !== loadRevision) return; data = loaded; overview();
+    setText('loadStatus', `Loaded replay.json · ${new Date().toLocaleTimeString()} local viewer time · evidence timestamps remain as recorded.`);
+  } catch (error) {
+    if (token !== loadRevision) return;
+    setText('loadStatus', `Could not load replay.json: ${error.message}. Serve this HTML beside the evidence JSON using the existing local viewer. ${list(data.routes).length ? 'Previously loaded evidence is still displayed.' : 'No results have been inferred.'}`);
+    setText('runStatus', list(data.routes).length ? 'Reload failed · previous evidence' : 'Evidence unavailable');
+  } finally { if (token === loadRevision) $('reload').disabled = false; }
+}
+$('reload').addEventListener('click', load);
+$('family').addEventListener('change', filterRoutes); $('split').addEventListener('change', filterRoutes); $('route').addEventListener('change', selectRoute);
+$('resetFilters').addEventListener('click', () => { $('family').value = ''; $('split').value = ''; filterRoutes(); });
+$('previous').addEventListener('click', () => seek(frameIndex - 1)); $('next').addEventListener('click', () => seek(frameIndex + 1)); $('play').addEventListener('click', play);
+$('scrubber').addEventListener('input', () => seek(Number($('scrubber').value)));
+$('speed').addEventListener('change', () => { if (playing) { pause(); play(); } }); $('rangeMode').addEventListener('change', drawPlot); $('probe').addEventListener('change', showProbe);
+$('rangePlot').addEventListener('click', event => {
+  if (!plotGeometry || !list(route?.frames).length) return;
+  const rect = $('rangePlot').getBoundingClientRect(), px = event.clientX - rect.left, g = plotGeometry;
+  const time = g.minTime + Math.max(0, Math.min(1, (px - g.left) / (g.right - g.left))) * g.spanTime;
+  let nearest = 0; g.times.forEach((value,index) => { if (Math.abs(value - time) < Math.abs(g.times[nearest] - time)) nearest = index; }); seek(nearest);
+});
+new ResizeObserver(drawPlot).observe($('rangePlot'));
+document.addEventListener('visibilitychange', () => { if (document.hidden) pause(); });
+load();
+</script>
+</body>
+</html>

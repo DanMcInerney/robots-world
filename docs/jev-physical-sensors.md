@@ -1,6 +1,8 @@
 # Camera pixels and optional TF-Luna
 
-This experiment removes the informative simulated sensors used in the earlier Jev pilots. The controller receives only measured camera features and, in one arm, a single TF-Luna beam. The small world core and its sensor/port contracts are unchanged.
+The recorded experiment removed the informative simulated sensors used in the earlier Jev pilots. The controller received only measured camera features and, in one arm, a single TF-Luna beam. The small world core and its sensor/port contracts are unchanged.
+
+As of 18 September 2026, `experiments/jev-sensors/run.ts` runs **only `sensor-camera`**. The optional TF-Luna module and historical two-arm results remain intact. Reproducing that comparison requires its archived source snapshot and manifest; the current runner is a camera-only legacy baseline. The [camera representation research](jev-camera-representation.md) explains the observed hover failure and proposes the next perception and control experiments. Those proposed experiments have not run.
 
 ## Device module
 

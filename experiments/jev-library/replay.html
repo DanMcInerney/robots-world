@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Perception library comparison</title>
+<style>
+:root{color-scheme:dark;font:15px/1.5 system-ui,sans-serif;background:#10161f;color:#e4edf6}*{box-sizing:border-box}body{margin:0 auto;max-width:1580px;padding:24px}h1{font-size:27px;margin:0}h2{font-size:18px;margin:0 0 8px}p{margin:8px 0 18px;color:#afbdd0}a{color:#8cceff}button,select,input{font:inherit}select,button{padding:7px 10px;border:1px solid #42546b;background:#172333;color:inherit;border-radius:6px}button{cursor:pointer}button:hover{background:#263a50}label{display:flex;gap:7px;align-items:center}nav{display:flex;gap:14px;flex-wrap:wrap;align-items:center;background:#17202d;padding:14px;margin:16px 0;border-radius:8px}#frame{min-width:200px;flex:1}.panels{display:grid;grid-template-columns:1fr 1fr;gap:18px}.panel{padding:14px;background:#17202d;border:1px solid #2a394b;border-radius:9px;min-width:0}.panel label{justify-content:space-between;margin-bottom:12px}.panel select{max-width:80%}canvas{display:block;width:100%;height:auto;background:#090d13}.stats{font-size:15px;margin:12px 0;min-height:75px}.badge{font-weight:600}.good{color:#62ddbb}.bad{color:#ff9aab}.unknown{color:#e6c077}pre{white-space:pre-wrap;overflow-wrap:anywhere;font:12px/1.45 ui-monospace,monospace;color:#bed0e4}details{border-top:1px solid #314155;padding:8px 0}summary{cursor:pointer}#reference{padding:10px 0;color:#ffc56f}.legend{font-size:12px;margin:8px 0}.table-wrap{overflow:auto;margin:12px 0 24px}table{border-collapse:collapse;width:100%;font-size:13px;text-align:right}th,td{padding:9px 10px;border-bottom:1px solid #314155;white-space:nowrap}th:first-child,td:first-child{text-align:left}tbody tr{cursor:pointer}tbody tr:hover{background:#1d3044}tbody tr.active{background:#213b4c}.heading-row{display:flex;align-items:center;justify-content:space-between;margin-top:24px;gap:12px;flex-wrap:wrap}#error{color:#ff9aab;font-size:18px;white-space:pre-wrap}.small{font-size:12px}#unavailable{color:#e6c077}#frameLabel{font-variant-numeric:tabular-nums;min-width:115px}@media(max-width:850px){body{padding:12px}.panels{grid-template-columns:1fr}nav{gap:8px}#frame{flex-basis:100%}}
+</style>
+<h1>Perception library comparison</h1>
+<p id="scope">Loading preserved frames and comparison results…</p>
+<div id="error" role="alert"></div>
+<main hidden>
+  <nav aria-label="Replay controls">
+    <label>Route <select id="route"></select></label>
+    <button id="previous" aria-label="Previous frame">←</button>
+    <input id="frame" type="range" min="0" value="0" aria-label="Frame">
+    <button id="next" aria-label="Next frame">→</button>
+    <span id="frameLabel"></span>
+  </nav>
+  <div id="reference"></div>
+  <p class="legend">Same recorded RGB in both panels. Selected box: pink · other blue-car candidates: cyan · other detections: grey · evaluator reference: dashed gold. Reference truth is for evaluation only.</p>
+  <div class="panels">
+    <section class="panel" id="leftPanel"><label>Left arm <select id="leftArm"></select></label><canvas aria-label="Left arm detections"></canvas><div class="stats"></div><details open><summary>Range and selection</summary><pre class="measurement"></pre></details><details><summary>Recorded compute timings</summary><pre class="timing"></pre></details><details><summary>Tracking and provenance</summary><pre class="provenance"></pre></details></section>
+    <section class="panel" id="rightPanel"><label>Right arm <select id="rightArm"></select></label><canvas aria-label="Right arm detections"></canvas><div class="stats"></div><details open><summary>Range and selection</summary><pre class="measurement"></pre></details><details><summary>Recorded compute timings</summary><pre class="timing"></pre></details><details><summary>Tracking and provenance</summary><pre class="provenance"></pre></details></section>
+  </div>
+  <div class="heading-row"><h2>Fixed-population comparison</h2><label>Population <select id="population"><option value="oldConfirmation400">Old confirmation · 400 reused frames</option><option value="all1200">All 1,200 reused frames</option></select></label></div>
+  <p class="small">Click an arm row to show it on the right. Error statistics include all returned ranges, including wrong target selections. Detector recall uses raw candidates independently of the selected target.</p>
+  <div class="table-wrap"><table><thead><tr><th>Arm</th><th>Frames</th><th>Raw recall</th><th>Correct usable</th><th>Accepted</th><th>Wrong</th><th>Unknown</th><th>MAE m</th><th>p95 m</th><th>&gt;2 m</th></tr></thead><tbody id="metrics"></tbody></table></div>
+  <p id="unavailable"></p>
+  <p class="small" id="timingNote"></p>
+  <details><summary>Selected right arm: family, range-band, and tracking summaries</summary><pre id="breakdown"></pre></details>
+  <p class="small"><a href="summary.json">Full summary</a> · <a href="replay.json">Exact frame records</a></p>
+</main>
+<script type="module">
+const $ = id => document.getElementById(id);
+const number = (value, digits=3) => Number.isFinite(value) ? value.toFixed(digits) : 'unknown';
+const write = (node, value) => node.textContent = typeof value === 'string' ? value : JSON.stringify(value, null, 2);
+let data, generation = 0;
+function options(select, values) { for (const [value, title] of values) { const option = document.createElement('option'); option.value=value; option.textContent=title; select.append(option); } }
+function box(ctx, rectangle, color, dashed=false, width=2) { if (!rectangle) return; const [x,y,x1,y1]=rectangle; ctx.strokeStyle=color; ctx.lineWidth=width; ctx.setLineDash(dashed ? [6,4] : []); ctx.strokeRect(x,y,x1-x,y1-y); ctx.setLineDash([]); }
+function draw(panel, frame, arm, version) {
+  const record=frame.arms[arm], g=record.grade, canvas=panel.querySelector('canvas'), ctx=canvas.getContext('2d');
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  const image=new Image();
+  image.onload=()=>{ if(version!==generation)return; canvas.width=image.naturalWidth; canvas.height=image.naturalHeight; ctx.drawImage(image,0,0);
+    for(const d of record.detections) box(ctx,d.boxXyxy,d.detectionId===record.selectedDetectionId?'#ff668c':d.blueCarCandidate?'#5ae2e0':'#8193a5',false,d.detectionId===record.selectedDetectionId?3:1);
+    box(ctx,frame.evaluator.visibleBox,'#ffc56f',true,2);
+  };
+  image.onerror=()=>{ if(version===generation)write($('error'),'Could not load the exact recorded image: '+frame.left); };
+  image.src=frame.left;
+  const badge=document.createElement('span'); badge.className='badge '+(g.correctUsable?'good':g.accepted?'bad':'unknown');
+  badge.textContent=g.correctUsable?'Correct usable range':g.accepted?'Accepted wrong target':'Unknown range';
+  const stats=panel.querySelector('.stats'); stats.replaceChildren(badge,document.createElement('br'),document.createTextNode(`Range ${number(record.measurement.estimateM)} m · error ${number(g.errorM)} m · selected IoU ${number(g.selectedDetectionIoU)} · ${record.candidateCount} candidates`),document.createElement('br'),document.createTextNode('Raw correct candidate present: '+(g.detectorCorrectCandidate?'yes':'no')));
+  write(panel.querySelector('.measurement'),{selectionStatus:record.selectionStatus,selectedDetectionId:record.selectedDetectionId,measurement:record.measurement});
+  write(panel.querySelector('.timing'),record.timing);
+  write(panel.querySelector('.provenance'),{tracking:record.tracking,metadata:data.summary.arms[arm].metadata,artifacts:record.artifacts});
+}
+function table() {
+  const population=$('population').value, body=$('metrics'); body.replaceChildren();
+  for(const [arm,summary] of Object.entries(data.summary.arms)) {
+    const m=summary[population], tr=document.createElement('tr'); tr.classList.toggle('active',arm===$('rightArm').value); tr.tabIndex=0;
+    const values=[arm,m.frames,Number.isFinite(m.detectorRecall)?number(m.detectorRecall*100,1)+'%':'unknown',m.correctUsableRanges,m.acceptedRanges,m.acceptedWrongAssociations,m.unknownRanges,number(m.meanAbsoluteErrorM),number(m.p95AbsoluteErrorM),m.absoluteErrorsOver2M];
+    for(const value of values){const td=document.createElement('td');td.textContent=value;tr.append(td);}
+    const choose=()=>{$('rightArm').value=arm;render();};tr.onclick=choose;tr.onkeydown=event=>{if(event.key==='Enter')choose();};body.append(tr);
+  }
+  const summary=data.summary.arms[$('rightArm').value];
+  write($('breakdown'),{perFamily:summary.perFamily[population],rangeBands:summary.rangeBands[population],tracking:summary.trackingByPopulation[population],recordedTimingAll1200:summary.timing});
+}
+function render() {
+  const route=data.routes.find(r=>r.id===$('route').value), index=Number($('frame').value), frame=route.frames[index]; generation++;
+  write($('frameLabel'),`Frame ${frame.frameIndex} / ${route.frames.length-1}`);
+  write($('reference'),`${frame.id} · acquired ${frame.atMs} ms · evaluator median visible range ${number(frame.evaluator.medianVisibleRangeM)} m`);
+  draw($('leftPanel'),frame,$('leftArm').value,generation);draw($('rightPanel'),frame,$('rightArm').value,generation);table();
+  const query=new URLSearchParams({route:route.id,frame:index,left:$('leftArm').value,right:$('rightArm').value});history.replaceState(null,'','?'+query);
+}
+try {
+  const response=await fetch('replay.json');if(!response.ok)throw new Error(`Replay request failed: HTTP ${response.status}`);data=await response.json();
+  write($('scope'),data.scope);write($('timingNote'),data.summary.timingCaveat);
+  write($('unavailable'),Object.entries(data.summary.unavailableArms).map(([arm,value])=>`${arm}: ${value.status} — ${value.reason}`).join('\n'));
+  options($('route'),data.routes.map(r=>[r.id,`${r.id} (${r.split})`]));const arms=Object.keys(data.summary.arms);options($('leftArm'),arms.map(a=>[a,a]));options($('rightArm'),arms.map(a=>[a,a]));
+  const query=new URLSearchParams(location.search);if(data.routes.some(r=>r.id===query.get('route')))$('route').value=query.get('route');
+  $('leftArm').value=arms.includes(query.get('left'))?query.get('left'):'archived_bbox';$('rightArm').value=arms.includes(query.get('right'))?query.get('right'):arms.find(a=>!a.startsWith('archived_'))||'archived_cluster';
+  function resetFrame(){const route=data.routes.find(r=>r.id===$('route').value);$('frame').max=route.frames.length-1;$('frame').value=0;}
+  resetFrame();if(query.has('frame'))$('frame').value=Math.max(0,Math.min(Number($('frame').max),Number(query.get('frame'))||0));
+  $('route').onchange=()=>{resetFrame();render();};for(const id of ['leftArm','rightArm','population'])$(id).onchange=render;$('frame').oninput=render;
+  function step(delta){$('frame').value=Math.max(0,Math.min(Number($('frame').max),Number($('frame').value)+delta));render();}
+  $('previous').onclick=()=>step(-1);$('next').onclick=()=>step(1);document.addEventListener('keydown',event=>{if(event.target.matches('select,input'))return;if(event.key==='ArrowLeft')step(-1);if(event.key==='ArrowRight')step(1);});
+  document.querySelector('main').hidden=false;render();
+} catch(error) {write($('error'),String(error));write($('scope'),'The comparison could not be loaded. Serve this directory over local HTTP with the archived sibling directory accessible.');}
+</script>
+</html>

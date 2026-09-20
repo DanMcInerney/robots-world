@@ -3,7 +3,7 @@ import type { Observation, RobotPort, Scenario, SensorReading, Vec3, Command, Re
 import { aimedDroneKit, projectPoint, radians, yawDegrees } from '../../src/devices/aim-camera.ts';
 import { rangeCloud } from '../../src/devices/range-cloud.ts';
 import { defaultRegistry } from '../../src/defaults.ts';
-import { distance, pose, randomStream, sub, vec } from '../../src/math.ts';
+import { add, distance, pose, randomStream, rotate, sub, vec } from '../../src/math.ts';
 import { MavlinkAdapter, MavlinkCodec, enuToNed } from '../../src/protocols/mavlink.ts';
 import { Journal } from '../../src/recorder.ts';
 import { World } from '../../src/world.ts';
@@ -16,6 +16,17 @@ export interface SensorExperiment {
   id: string;
   sourceSensor: string;
   configure(scenario: Scenario, registry: ReturnType<typeof defaultRegistry>, kit: ReturnType<typeof aimedDroneKit>): void;
+}
+/** Experiment-owned objective; privileged scoring is never part of a controller observation. */
+export interface ReactiveTask {
+  id: string;
+  goal(version: number): string;
+  framed(view: { visible: boolean; u: number; v: number; widthFraction: number; hfov: number; goalVersion: number }): boolean;
+}
+/** Privileged fixture motion, never passed to a controller. Replaces the legacy target/crossing stimulus. */
+export interface ReactiveEnvironment {
+  configure(scenario: Scenario): void;
+  tick(world: World, target: RobotPort): Promise<void>;
 }
 const relations: Relation[] = ['left', 'right', 'ahead', 'behind'];
 const opposite: Record<Relation, Relation> = { left: 'right', right: 'left', ahead: 'behind', behind: 'ahead' };
@@ -53,9 +64,13 @@ export class ReactiveWorld {
   private phases: typeof this.phase[] = []; private contacts = 0; private bounds = 0;
   private history: ReactiveState['lastActions'] = []; readonly trajectory: unknown[] = [];
   private emit: Emit; private cameraTruth: () => { pitchDeg: number; hfovDeg: number }; readonly switchAtMs: number; readonly config: ExperimentConfig;
-  private constructor(world: World, emit: Emit, cameraTruth: () => { pitchDeg: number; hfovDeg: number }, switchAtMs: number, config: ExperimentConfig) {
+  private task?: ReactiveTask;
+  private environment?: ReactiveEnvironment;
+  private goalText() { return this.task?.goal(this.goalVersion) ?? goalFor(this.relation, this.config); }
+  private constructor(world: World, emit: Emit, cameraTruth: () => { pitchDeg: number; hfovDeg: number }, switchAtMs: number, config: ExperimentConfig, task?: ReactiveTask) {
     this.config = config; this.world = world; this.emit = emit; this.cameraTruth = cameraTruth; this.switchAtMs = switchAtMs;
-    this.relation = relations[world.scenario.seed % 4]!; this.phase.goal = goalFor(this.relation, this.config);
+    this.task = task;
+    this.relation = relations[world.scenario.seed % 4]!; this.phase.goal = this.goalText();
     this.routeRandom = randomStream(world.scenario.seed, 'unseen-target-motion'); this.radioRandom = randomStream(world.scenario.seed, 'command-link'); this.heading = world.scenario.seed % 4 * Math.PI / 2;
     this.drone = world.claim('drone', 'reactive-controller'); this.targetPort = world.claim('target', 'environment');
     const proxy: RobotPort = { ...this.drone, command: async command => {
@@ -67,14 +82,16 @@ export class ReactiveWorld {
     this.wire = new MavlinkAdapter({ ports: [{ port: proxy, systemId: 1 }], record: world.journal.record, simMs: () => world.simMs });
   }
   private sensorExperiment?: SensorExperiment;
-  static async create(seed: number, emit: Emit = () => {}, switchAtMs = 30000, settings: ExperimentConfig = DEFAULT_CONFIG, sensors?: SensorExperiment) {
+  static async create(seed: number, emit: Emit = () => {}, switchAtMs = 30000, settings: ExperimentConfig = DEFAULT_CONFIG, sensors?: SensorExperiment, task?: ReactiveTask, environment?: ReactiveEnvironment) {
     const config = experimentConfig(settings);
     const registry = defaultRegistry(), kit = aimedDroneKit(); registry.models.set(kit.model.id, kit.model); registry.sensors.set(kit.camera.id, kit.camera); registry.sensors.set(rangeCloud.id, rangeCloud);
     const scenario = scenarioFor(seed, config);
+    environment?.configure(scenario);
     sensors?.configure(scenario, registry, kit);
     if (sensors && config.sensors.cooperativeBeacon) throw new Error('Sensor-only experiment cannot enable cooperative target broadcast');
-    const instance = new ReactiveWorld(await World.create(scenario, registry, 'rapier', new Journal(4000)), emit, () => kit.inspectCamera('drone'), switchAtMs, config);
+    const instance = new ReactiveWorld(await World.create(scenario, registry, 'rapier', new Journal(4000)), emit, () => kit.inspectCamera('drone'), switchAtMs, config, task);
     instance.sensorExperiment = sensors;
+    instance.environment = environment;
     for (let i = 0; i < 15; i++) await instance.tick();
     return instance;
   }
@@ -149,7 +166,7 @@ export class ReactiveWorld {
       observe: async () => {
         if (!this.live || this.controllerStopped) throw new Error('Controller stopped');
         const observation = await this.drone.observe();
-        observation.goal = goalFor(this.relation, this.config);
+        observation.goal = this.goalText();
         const target = this.target;
         if (!this.sensorExperiment) observation.sensors.target = { value: target?.value as unknown as Json ?? null, acquiredSimMs: target?.acquiredMs ?? 0, receivedSimMs: target?.receivedMs ?? 0, valid: !!target && observation.simMs - target.acquiredMs <= 1000, sequence: target?.acquiredMs ?? 0 };
         sources.set(observation.sequence, { simMs: observation.simMs, odometryMs: observation.sensors[this.sensorExperiment?.sourceSensor ?? 'odometry']!.acquiredSimMs, goalVersion: this.goalVersion });
@@ -204,17 +221,18 @@ export class ReactiveWorld {
     const t = this.world.simMs, seed = this.world.scenario.seed;
     if (!this.switched && t >= this.switchAtMs) {
       this.phases.push({ ...this.phase }); this.relation = opposite[this.relation]; this.goalVersion++; this.goalReceivedMs = t; this.switched = true;
-      this.phase = { startMs: t, goal: goalFor(this.relation, this.config), counted: 0, visible: 0, framing: 0, dwell: 0, longestDwellMs: 0, inspectedAt: null };
+      this.phase = { startMs: t, goal: this.goalText(), counted: 0, visible: 0, framing: 0, dwell: 0, longestDwellMs: 0, inspectedAt: null };
       await this.hold(this.controllerStopped ? 'controller-failed-or-stopped' : 'goal-change');
       this.emit('reactive.goal', { simMs: t, goalVersion: this.goalVersion, goal: this.phase.goal });
     }
     if (this.requested && t >= this.expiresMs) { this.emit('reactive.expired', { simMs: t }); await this.hold('command-expired'); }
-    if (t >= this.nextTurn) {
+    if (!this.environment && t >= this.nextTurn) {
       this.heading += (this.routeRandom() * 2 - 1) * 1.5; this.speed = .2 + this.routeRandom() * .45; this.nextTurn = t + 4500 + Math.floor(this.routeRandom() * 5000);
       // This private event goes only to the evaluator trace, never to a model request.
       this.emit('reactive.stimulus.turn', { simMs: t, heading: this.heading, speed: this.speed });
     }
     if (Math.round(t) % 100 === 0) {
+      if (!this.environment) {
       const body = this.world.physics.body('target/base');
       if (Math.abs(body.pose.position.x) > 10 || Math.abs(body.pose.position.y) > 10) this.heading = Math.atan2(-body.pose.position.y, -body.pose.position.x);
       const delta = Math.atan2(Math.sin(this.heading - radians(yawDegrees(body.pose.rotation))), Math.cos(this.heading - radians(yawDegrees(body.pose.rotation))));
@@ -224,11 +242,15 @@ export class ReactiveWorld {
         // A bounded radio blackout is an environmental impairment, unknown in advance to models.
         if (this.config.sensors.cooperativeBeacon && !(t > 18000 && t < 20200)) await this.targetPort.send({ id: `beacon-${this.sequence}`, to: 'drone', ttlMs: 500, data: JSON.stringify({ acquiredMs: odom.acquiredSimMs, value: { position: sample.position, velocity: sample.linearVelocity, headingDeg: yawDegrees(sample.rotation) } }) }); }
       if (observation.events.length) await this.targetPort.acknowledge(observation.events.at(-1)!.id);
+      }
       await this.stream();
     }
+    if (this.environment) await this.environment.tick(this.world, this.targetPort);
+    else {
     const theta = seed % 4 * Math.PI / 2, crossing = this.world.physics.body('crossing').pose.position;
     const localY = -crossing.x * Math.sin(theta) + crossing.y * Math.cos(theta), desiredY = 4 * Math.sin(t / 7000 + seed % 7);
     this.world.physics.velocity('crossing', vec(-Math.sin(theta) * (desiredY - localY), Math.cos(theta) * (desiredY - localY), 0));
+    }
     for (const packet of this.pending.filter(p => p.due <= t)) {
       if (packet.goalVersion !== this.goalVersion || packet.commandId !== this.commandId || packet.expiresMs <= t) continue;
       if (!this.sensorExperiment && !forecast(this.state(), packet.camera, this.config, (packet.expiresMs - t) / 1000, 0).safe) { this.guardInterventions++; await this.hold('delivery-envelope-or-odometry'); break; }
@@ -251,7 +273,10 @@ export class ReactiveWorld {
     const d = sub(p, target.pose.position), theta = radians(yawDegrees(target.pose.rotation)), horizontal = Math.hypot(d.x, d.y);
     const forward = d.x * Math.cos(theta) + d.y * Math.sin(theta), left = -d.x * Math.sin(theta) + d.y * Math.cos(theta);
     const dot = ({ ahead: forward, behind: -forward, left, right: -left }[this.relation]) / Math.max(.001, horizontal);
-    const framed = visible && Math.abs(projection.u) <= .5 && Math.abs(projection.v) <= .5 && dot >= .7 && projection.range >= 2.5 && projection.range <= 6;
+    // This fixture's target is a .55 x .55 x .18 m box, matching its pixel renderer.
+    const corners = this.task ? Array.from({ length: 8 }, (_, i) => projectPoint(p, add(target.pose.position, rotate(vec((i & 1 ? 1 : -1) * .275, (i & 2 ? 1 : -1) * .275, (i & 4 ? 1 : -1) * .09), target.pose.rotation)), yawDegrees(drone.pose.rotation), camera.pitchDeg, camera.hfovDeg)) : [];
+    const view = { visible, u: projection.u, v: projection.v, widthFraction: corners.length ? (Math.max(...corners.map(c => c.u)) - Math.min(...corners.map(c => c.u))) / 2 : 0, hfov: camera.hfovDeg, goalVersion: this.goalVersion };
+    const framed = this.task ? this.task.framed(view) : visible && Math.abs(projection.u) <= .5 && Math.abs(projection.v) <= .5 && dot >= .7 && projection.range >= 2.5 && projection.range <= 6;
     this.phase.dwell = framed ? this.phase.dwell + 20 : 0; this.phase.longestDwellMs = Math.max(this.phase.longestDwellMs, this.phase.dwell);
     if (this.phase.dwell >= this.config.scoring.minimumDwellMs && this.phase.inspectedAt === null) this.phase.inspectedAt = this.world.simMs;
     if (this.world.simMs > this.phase.startMs + this.config.scoring.warmupMs) { this.phase.counted++; if (visible) this.phase.visible++; if (framed) this.phase.framing++; }
@@ -259,7 +284,7 @@ export class ReactiveWorld {
     if (Math.abs(p.x) > 18 || Math.abs(p.y) > 18 || p.z < .7 || p.z > 6) this.bounds++;
     if (this.fallbackReason) this.fallbackMs += 20;
     if (Math.round(this.world.simMs) % 100 === 0) {
-      const frame = { fallback: this.fallbackReason, controllerStopped: this.controllerStopped, simMs: this.world.simMs, drone: p, target: target.pose.position, heading: yawDegrees(drone.pose.rotation), pitch: camera.pitchDeg, hfov: camera.hfovDeg, visible, inspectable: framed, goalVersion: this.goalVersion, crossing: this.world.physics.body('crossing').pose.position };
+      const frame = { fallback: this.fallbackReason, controllerStopped: this.controllerStopped, simMs: this.world.simMs, drone: p, target: target.pose.position, heading: yawDegrees(drone.pose.rotation), pitch: camera.pitchDeg, hfov: camera.hfovDeg, visible, inspectable: framed, goalVersion: this.goalVersion, crossing: this.world.physics.body('crossing').pose.position, ...(this.task ? { task: this.task.id, view } : {}) };
       this.trajectory.push(frame); this.emit('reactive.evaluation.frame', frame);
     }
   }
