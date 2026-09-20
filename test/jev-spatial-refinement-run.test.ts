@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {generateTemporalCases} from '../experiments/jev-spatial-refinement/temporal.ts';
 import {choose,criticalAssertions,criticalOpportunities,assertUnchangedPrefix,gates,verify,validateSelection} from '../experiments/jev-spatial-refinement/run.ts';
 import {digest} from '../experiments/jev-spatial-text/transport.ts';
-import {mkdtemp,mkdir,writeFile} from 'node:fs/promises';
+import {mkdtemp,mkdir,rm,writeFile} from 'node:fs/promises';
 import {resolve,relative,dirname} from 'node:path';
 
 test('critical temporal assertions count unsupported current, epoch, and acquisition claims independently',()=>{
@@ -29,8 +29,10 @@ test('immutable development ledger accepts appends and rejects changed or trunca
   assert.throws(()=>assertUnchangedPrefix(Buffer.from('record xxx\nrecord two\n'),prefix,hash));
   assert.throws(()=>assertUnchangedPrefix(prefix,Buffer.from('changed\n'),hash));
 });
-test('gate paths reject changed live scorer and stale selection while allowing a confirmation suffix',async()=>{
+test('gate paths reject changed live scorer and stale selection while allowing a confirmation suffix',async(t)=>{
+  await mkdir(resolve('.runtime'),{recursive:true});
   const root=await mkdtemp(resolve('.runtime/refinement-integrity-'));
+  t.after(()=>rm(root,{recursive:true,force:true}));
   const stage=resolve(root,'freezes/fixed'),source=resolve(root,'scorer.ts');
   const sourcePath=relative(process.cwd(),source).replaceAll('\\','/');
   const copied=resolve(stage,'source',sourcePath),sourceBytes='export const score = 1;\n';
