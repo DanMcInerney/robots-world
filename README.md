@@ -4,7 +4,7 @@ A small robotics **control testbed**. Physics, sensors and radio keep moving whi
 
 Read the [design principles](PRINCIPLES.md) for the platform's boundaries and rules for fair controller comparisons.
 
-The [physical sensor experiment](docs/jev-physical-sensors.md) adds an optional TF-Luna rangefinder with real UART decoding/MAVLink telemetry and a camera-to-marker perception pipeline that runs on actual rendered pixels. Its Jev arms omit target broadcasts, global position, surrounding depth and geometric camera ranging; every input image and raw range packet can be audited.
+The [camera-only control pilot](docs/jev-pixels.md) tests five real Jev arrangements using pixel-derived colour regions and tracks: numeric features, words, history, joint XY choices and conditional object controls. [Camera-to-Jev research](docs/jev-camera-representation.md) documents the design and 18 official cookbooks. The earlier [physical sensor experiment](docs/jev-physical-sensors.md) and optional TF-Luna module remain available; new experiments exclude the rangefinder.
 
 **[Jev Flight Lab](docs/jev-strategies.md)** compares eight real Jev control arrangements in a continuously changing world. Open **Jev Flight Lab** in the cockpit to compare flights and inspect exact instructions, observations, choices, probabilities and applied MAVLink commands. [Expanded results](docs/jev-expanded-results.md) cover the completed 32-flight matrix and a separate six-control geometry ablation. The [documentation audit](docs/jev-docs-audit.md) explains the per-question option limit, parallel questions, assistance from code and the experiment boundaries.
 
@@ -69,8 +69,18 @@ A controller only receives its assigned robots' observations, installed sensors 
 
 ## Scope and evidence
 
+[Design failures and decisions](docs/design-failures.md) is the accumulating evidence log. [Camera-loop ablations](docs/jev-loop-experiments.md) compare control wording, sensor-derived motion history and paired questions while retaining the same full actuator choices. The [loop diagnosis](docs/jev-loop-diagnosis.md) traces early direction errors, delayed feedback, stale-angle control semantics and perception loss to recorded evidence.
+
+[Hypothesis qualification results](docs/jev-hypothesis-results.md) test twelve explanations with offline mechanics, 144 real Jev static calls and 22 matched flights. The [frozen plan](docs/jev-hypothesis-tests.md) separates component fixes from end-to-end success; the [local visual laboratory](http://127.0.0.1:8870/.runtime/experiments/jev-hypotheses-v1/index.html) exposes exact inputs, probabilities, assistance and failed replays.
+
 This is a software integration laboratory, not a claim of universal physical fidelity. Rapier provides rigid bodies, collisions and motorized joints. The drone uses an idealized acceleration servo; the rover has simplified planar motion; the humanoid is a supported articulation fixture, not a walking robot. The kinematic backend intentionally rejects unsupported dynamics and joints. Depth uses geometric rays, not RGB or photorealistic vision.
 
 MAVLink uses actual binary framing and an optional UDP endpoint. It is a small supported-message facade, not PX4/ArduPilot SITL or a flight controller. Simulated radio models application-visible impairments, not Wi-Fi propagation, DDS discovery, interference or a MAC. Controller code can reuse `RobotPort` against hardware, but a hardware adapter, actuator safety, calibration and independent qualification are still required. Native model performance and hardware behavior are not established by mock tests.
 
 See [research decisions](docs/research.md), [Jev experiments](docs/jev.md), and [qualification](docs/qualification.md).
+
+[Persistent tracking qualification](docs/jev-tracking-results.md) reports longer constant-goal flights, explicit Jev target binding, optional OpenCV perception, declared camera-servo assistance, and separately labelled service/pacing interruptions. The [experiment package](experiments/jev-tracking/README.md) remains outside the world core.
+
+[Obstacle scouting tests](docs/jev-scout-tests.md) add initially unseen targets, viewpoint changes around walls, and moving targets behind physical cover. The [three-technique pilot](docs/jev-scout-techniques.md) compares direct controls, declared camera assistance, and assistance plus dated visual memory. [18 actual Jev flights](docs/jev-scout-techniques-results.md) show useful assisted aiming but no complete mission passes; the visual report retains every replay and exact decision. Fixture qualification and synthetic smoke remain separate from real inference.
+
+[Five-round Jev handoff](docs/JEV-FIVE-ROUND-HANDOFF.md) consolidates the test history, cited perception/control research and an adaptive campaign for Jev-led discovery and following. The [new-session prompt](docs/jev-five-round-prompt.md) specifies execution and reporting; these planned rounds are not yet results.

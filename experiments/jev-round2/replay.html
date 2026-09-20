@@ -1,0 +1,287 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>Round 2 · Depth & movement evidence</title>
+<style>
+:root{font:15px/1.5 system-ui,sans-serif;color:#edf3fa;background:#0a1018;--panel:#121d29;--line:#2a3b4d;--muted:#a6b6c8;--mint:#78e4c2;--amber:#ffd08a;--blue:#8fbfff;--red:#ff9ca7}
+*{box-sizing:border-box}body{margin:0}main{max-width:1440px;margin:auto;padding:30px 32px 60px}a{color:var(--mint);text-underline-offset:4px}button,select{font:inherit;color:inherit;background:#1b2a3b;border:1px solid var(--line);border-radius:8px;padding:9px 12px}button{cursor:pointer}button:hover{border-color:var(--mint)}button:disabled{opacity:.4;cursor:default}select{width:100%;max-width:100%}:focus-visible{outline:3px solid var(--blue);outline-offset:3px}[hidden]{display:none!important}.row,.topline,.section-head{display:flex;align-items:center;gap:12px}.topline,.section-head{justify-content:space-between;flex-wrap:wrap}.topline nav{display:flex;flex-wrap:wrap;gap:20px;font-size:13px}.eyebrow{font:700 11px/1.5 ui-monospace,monospace;letter-spacing:.15em;color:var(--mint);text-transform:uppercase}h1{font-size:clamp(32px,4vw,50px);line-height:1.1;letter-spacing:-.045em;font-weight:680;margin:31px 0 15px}h2{font-size:23px;letter-spacing:-.025em;margin:0}h3{font-size:16px;margin:0 0 12px}p{margin:0 0 12px}.intro{font-size:17px;max-width:890px;color:var(--muted)}.scope{border-left:3px solid var(--amber);background:#261f17;border-radius:0 9px 9px 0;padding:14px 18px;margin:24px 0;color:#f6dcb3}.scope strong{color:var(--amber)}.scope p{font-size:13px;margin:5px 0 0}.status,.muted,.hint{font-size:13px;color:var(--muted)}.error{color:var(--red)}.hint{margin-top:10px}.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:20px 0}.card,.panel{background:var(--panel);border:1px solid var(--line);border-radius:11px;min-width:0}.card{padding:18px 20px}.metric{font-size:31px;line-height:1.3;letter-spacing:-.03em;font-variant-numeric:tabular-nums}.caption{font-size:12px;color:var(--muted)}.section{margin-top:34px}.section-head{margin-bottom:15px}.pad{padding:20px}.grid2{display:grid;grid-template-columns:1fr 1fr;gap:15px}.summary-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:14px 0}.summary-item{border-left:2px solid var(--line);padding:5px 10px;overflow-wrap:anywhere}.summary-item strong{display:block;font-size:16px;font-weight:600;margin-top:3px;white-space:pre-wrap}.filters{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px}.filters label,.pickers label{display:grid;gap:5px;color:var(--muted);font-size:12px}.pickers{display:flex;align-items:end;gap:12px;flex-wrap:wrap;margin-top:17px}.grow{flex:1;min-width:230px}.badge{font:12px ui-monospace,monospace;color:var(--muted);border:1px solid var(--line);padding:4px 9px;border-radius:99px;display:inline-block}.badge.good{color:var(--mint);border-color:#356e5e}.badge.bad{color:var(--red);border-color:#794450}.badge.warn{color:var(--amber);border-color:#735b36}.tags{display:flex;flex-wrap:wrap;gap:7px;margin:10px 0}.primary{color:#08231b;background:var(--mint);border-color:var(--mint);font-weight:700}.images{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:18px}figure{margin:0;overflow:hidden}figcaption{padding:12px 15px;font-size:13px;display:flex;align-items:center;justify-content:space-between;gap:8px}.well{background:#060b11;aspect-ratio:4/3;display:grid;place-items:center;overflow:hidden}.well img{display:block;width:100%;height:100%;object-fit:contain}.well .empty{font-size:13px}.image-path{padding:10px 14px;font:11px ui-monospace,monospace;color:var(--muted);overflow-wrap:anywhere;min-height:44px}.empty{padding:30px;text-align:center;color:var(--muted)}.readouts{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin:18px 0}.readout strong{font-size:22px;font-weight:600;display:block;margin-top:3px;font-variant-numeric:tabular-nums}.readout.estimate strong{color:var(--mint)}.readout.reference strong{color:var(--amber)}.legend{display:flex;flex-wrap:wrap;gap:16px;color:var(--muted);font-size:12px}.dot{display:inline-block;width:9px;height:9px;background:var(--mint);border-radius:50%;margin-right:5px}.dot.reference{background:var(--amber)}.range-plot{width:100%;height:115px;display:block;margin-top:8px}.divider{border-top:1px solid var(--line);margin:20px 0}.choice-title{font-size:24px;font-weight:600;overflow-wrap:anywhere}.choice-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin:18px 0}.action{color:var(--mint);font-size:21px;white-space:pre-wrap;overflow-wrap:anywhere}.score{color:var(--text);white-space:pre-wrap;overflow-wrap:anywhere;font:13px/1.6 ui-monospace,monospace;margin-top:5px}.request-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}details{border:1px solid var(--line);border-radius:8px;background:#0c1520;margin-top:10px;min-width:0}summary{cursor:pointer;padding:11px 13px;font-size:13px;color:var(--muted)}details[open]>summary{border-bottom:1px solid var(--line);color:var(--text)}pre{white-space:pre-wrap;overflow-wrap:anywhere;overflow:auto;max-height:460px;font:12px/1.6 ui-monospace,SFMono-Regular,Consolas,monospace;padding:14px;margin:0;color:#d0ddec}footer{margin-top:35px;padding-top:18px;border-top:1px solid var(--line);display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;color:var(--muted);font-size:12px}.nowrap{white-space:nowrap}
+@media(max-width:950px){.filters{grid-template-columns:repeat(3,1fr)}.images{grid-template-columns:repeat(2,minmax(0,1fr))}.images figure:last-child{grid-column:1/-1;max-width:650px;width:100%;justify-self:center}.grid2{grid-template-columns:1fr}}
+@media(max-width:620px){main{padding:20px 15px 40px}.stats,.filters,.readouts{grid-template-columns:repeat(2,minmax(0,1fr))}.images,.request-grid,.choice-grid{grid-template-columns:1fr}.images figure:last-child{grid-column:auto}.pad{padding:16px}.section-head .badge{white-space:normal}.pickers .grow{min-width:100%}.summary-grid{grid-template-columns:1fr}.topline nav{gap:12px}h1{margin-top:25px}}
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div class="topline"><span class="eyebrow">Jev evidence lab / Round 02</span><nav aria-label="Evidence navigation"><a href="#samples">Browse samples</a><a href="/.runtime/experiments/jev-round1-v1/index.html#replay">Round 1 · real yaw replays ↗</a><a href="./replay.json">Raw evidence ↗</a></nav></div>
+    <h1>From camera depth<br>to a movement choice.</h1>
+    <p class="intro">Inspect the saved camera images, metric estimates and goal-dependent Jev answers. Every sample links the measured evidence to the exact question, response and recorded score.</p>
+    <div class="scope"><strong>Offline depth and movement-choice tests; no flight was executed.</strong><p id="recordedScope">Loading the recorded experiment scope…</p></div>
+    <div class="topline"><p id="loadStatus" class="status" role="status">Loading ./replay.json…</p><button type="button" id="reload">Reload evidence</button></div>
+    <div class="stats" aria-label="Loaded evidence counts">
+      <div class="card"><div class="caption">Scenes recorded</div><div class="metric" id="sceneCount">—</div><div class="caption">Related samples are not independent trials</div></div>
+      <div class="card"><div class="caption">Image estimates</div><div class="metric" id="recordCount">—</div><div class="caption" id="methodCount">Stereo and monocular records</div></div>
+      <div class="card"><div class="caption">Completed choices</div><div class="metric" id="completedCount">—</div><div class="caption" id="completionDetail">Status from each saved probe</div></div>
+      <div class="card"><div class="caption">Errors / missing choices</div><div class="metric" id="unresolvedCount">—</div><div class="caption">Retained alongside completed answers</div></div>
+    </div>
+  </header>
+
+  <section class="section" aria-labelledby="summaryHeading">
+    <div class="section-head"><div><div class="eyebrow">01 / Recorded findings</div><h2 id="summaryHeading">Results, with their original denominators</h2></div><span class="badge">No result inferred from answer confidence</span></div>
+    <div class="grid2">
+      <div class="panel pad"><h3>Primary experiment summary</h3><p class="muted">Values below are read from the saved primary summary. Open the full record for every group, denominator and qualification.</p><div id="primarySummary" class="summary-grid"></div><details><summary>Full primary summary · exact JSON</summary><pre id="summaryJson"></pre></details></div>
+      <div class="panel pad"><h3>Real-data regression summary</h3><p class="muted">The saved regression result is separate from the rendered scene experiment. Missing results remain unreported.</p><div id="realSummary" class="summary-grid"></div><details><summary>Full real-data regression summary · exact JSON</summary><pre id="realSummaryJson"></pre></details></div>
+    </div>
+    <details><summary>Evidence provenance and experiment scope</summary><pre id="evidenceJson"></pre></details>
+  </section>
+
+  <section class="section" id="samples" aria-labelledby="samplesHeading">
+    <div class="section-head"><div><div class="eyebrow">02 / Inspect the evidence</div><h2 id="samplesHeading">Image samples & recorded choices</h2></div><span id="matchCount" class="badge">Awaiting evidence</span></div>
+    <div class="panel pad">
+      <div class="filters">
+        <label for="splitFilter">Split<select id="splitFilter"><option value="">All splits</option></select></label>
+        <label for="methodFilter">Depth method<select id="methodFilter"><option value="">All methods</option></select></label>
+        <label for="armFilter">Choice arm<select id="armFilter"><option value="">All arms</option></select></label>
+        <label for="goalFilter">Goal distance<select id="goalFilter"><option value="">All goals</option></select></label>
+        <label for="sceneFilter">Scene filter<select id="sceneFilter"><option value="">All scenes</option></select></label>
+      </div>
+      <div class="pickers"><button type="button" id="prevScene" aria-label="Previous recorded scene">‹ Previous scene</button><button type="button" id="nextScene" aria-label="Next recorded scene">Next scene ›</button><button type="button" id="playSamples" class="primary" aria-pressed="false">Play sample slideshow</button><button type="button" id="resetFilters">Reset filters</button><output id="scenePosition" class="muted" aria-live="polite">—</output></div>
+      <p class="hint">The slideshow advances through actual saved scenes every 3 seconds. This is an image-sample viewer, not a flight animation or a command execution.</p>
+      <div class="pickers"><label class="grow" for="recordSelect">Image estimate<select id="recordSelect" disabled><option>No records loaded</option></select></label></div>
+    </div>
+    <div id="sampleEmpty" class="empty">Recorded image estimates will appear here when evidence is available.</div>
+    <div id="sampleBody" hidden>
+      <div class="section-head" style="margin-top:22px"><div><h3 id="sampleTitle"></h3><div class="tags" id="sampleTags"></div></div></div>
+      <div class="images">
+        <figure class="panel"><figcaption><strong>Left camera / RGB input</strong><span class="badge">Acquired image</span></figcaption><div class="well"><img id="leftImage" alt="Recorded left camera image" hidden><div id="leftImageEmpty" class="empty">No saved image</div></div><div id="leftImagePath" class="image-path"></div></figure>
+        <figure class="panel"><figcaption><strong>Right camera</strong><span class="badge">Stereo pair</span></figcaption><div class="well"><img id="rightImage" alt="Recorded right camera image" hidden><div id="rightImageEmpty" class="empty">No saved image</div></div><div id="rightImagePath" class="image-path"></div></figure>
+        <figure class="panel"><figcaption><strong>Depth visualization</strong><span class="badge">Derived output</span></figcaption><div class="well"><img id="depthImage" alt="Saved depth visualization for this image estimate" hidden><div id="depthImageEmpty" class="empty">No saved depth image</div></div><div id="depthImagePath" class="image-path"></div></figure>
+      </div>
+      <div class="panel pad" style="margin-top:15px">
+        <h3>Axial depth, Z</h3><p class="muted">Distance along the camera's optical axis, in metres. The reference is evaluation-only ground truth; it is not a sensor measurement supplied to the choice model.</p>
+        <div class="readouts"><div class="readout estimate"><span class="caption">Measured depth / median</span><strong id="measuredDepth">—</strong></div><div class="readout estimate"><span class="caption">Measured interval</span><strong id="measuredInterval">—</strong></div><div class="readout reference"><span class="caption">Reference Z · evaluation only</span><strong id="referenceDepth">—</strong></div><div class="readout"><span class="caption">Valid fraction</span><strong id="validFraction">—</strong></div></div>
+        <div class="legend"><span><i class="dot"></i>Mint: estimate and recorded interval</span><span><i class="dot reference"></i>Amber: ground truth for evaluation only</span></div>
+        <svg id="depthPlot" class="range-plot" viewBox="0 0 1000 115" role="img" aria-label="Measured axial depth and interval compared with evaluation reference"></svg>
+        <p id="intervalMeaning" class="hint"></p><p id="depthDifference" class="muted"></p>
+        <details><summary>Full sensor observation and evaluator record</summary><pre id="recordJson"></pre></details>
+      </div>
+      <div class="panel pad" style="margin-top:15px">
+        <div class="section-head"><h3>What did Jev choose for this goal?</h3><span class="badge">Answer only · no action executed</span></div>
+        <div class="pickers" style="margin-top:0"><label class="grow" for="probeSelect">Recorded choice<select id="probeSelect"></select></label><button type="button" id="prevProbe" aria-label="Previous recorded choice">‹ Choice</button><button type="button" id="nextProbe" aria-label="Next recorded choice">Choice ›</button></div>
+        <div id="probeEmpty" class="empty">No choices match this image estimate and the active filters.</div>
+        <div id="probeBody" hidden>
+          <div class="divider"></div><div class="choice-title" id="goalTitle"></div><div class="tags" id="probeTags"></div>
+          <div class="choice-grid"><div><div class="caption">Recorded answer</div><div class="action" id="answerText"></div><div class="caption" style="margin-top:12px">Selected action · from recorded metadata</div><div class="score" id="actionText"></div></div><div><div class="caption">Actual recorded score</div><div class="score" id="scoreText"></div><p class="hint">Scores are displayed as stored. An answer or high probability does not establish a completed movement.</p></div></div>
+          <p id="probeError" class="error" hidden></p>
+          <div class="request-grid"><details><summary>Original exact request · model, state and instructions</summary><pre id="requestJson"></pre></details><details><summary>Original exact response</summary><pre id="responseJson"></pre></details></div>
+          <div class="request-grid"><details><summary>Action map, expected answers and probe metadata</summary><pre id="metaJson"></pre></details><details><summary>Actual score and timing</summary><pre id="scoreJson"></pre></details></div>
+          <details><summary>Full original probe record</summary><pre id="probeJson"></pre></details>
+        </div>
+      </div>
+    </div>
+  </section>
+  <footer><span>Round 2 · Local, read-only evidence viewer · no external dependencies</span><a href="./replay.json">Open the complete replay.json ↗</a></footer>
+</main>
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+const list = value => Array.isArray(value) ? value : [];
+const object = value => value !== null && typeof value === 'object' && !Array.isArray(value);
+const finite = value => typeof value === 'number' && Number.isFinite(value);
+const present = value => value !== undefined && value !== null;
+const fmt = value => finite(value) ? new Intl.NumberFormat('en', {maximumFractionDigits:3}).format(value) : 'Unknown';
+const metres = value => finite(value) ? `${fmt(value)} m` : 'Unknown';
+const json = value => value === undefined ? 'Not recorded' : JSON.stringify(value, null, 2);
+const text = (id, value) => { $(id).textContent = value; };
+const exact = (id, value) => text(id, json(value));
+const filterIds = ['splitFilter', 'methodFilter', 'armFilter', 'goalFilter', 'sceneFilter'];
+let data = {records:[], probes:[]}, records = [], probes = [], currentRecord = null, currentProbes = [], scenes = [], slideTimer = null;
+function option(select, value, label) { const node = document.createElement('option'); node.value = String(value); node.textContent = label; select.append(node); }
+function badge(label, kind = '') { const node = document.createElement('span'); node.className = `badge ${kind}`; node.textContent = label; return node; }
+function fillFilter(id, values, all, label = value => value) {
+  const select = $(id), previous = select.value;
+  select.replaceChildren(); option(select, '', all);
+  [...new Set(values.filter(present).map(String))].sort((a,b) => a.localeCompare(b, undefined, {numeric:true})).forEach(value => option(select, value, label(value)));
+  if ([...select.options].some(item => item.value === previous)) select.value = previous;
+}
+function summaryPreview(id, value) {
+  const host = $(id); host.replaceChildren();
+  if (!present(value)) { const p = document.createElement('p'); p.className = 'muted'; p.textContent = 'No summary recorded.'; host.append(p); return; }
+  const entries = [];
+  function visit(item, path, depth) {
+    if (entries.length >= 16) return;
+    if (!present(item) || typeof item !== 'object') { entries.push([path || 'Recorded value', item]); return; }
+    if (Array.isArray(item)) {
+      if (item.length && item.every(v => !present(v) || typeof v !== 'object')) entries.push([path, item]);
+      else entries.push([path || 'Recorded rows', `${item.length} rows · see full JSON`]);
+      return;
+    }
+    if (depth >= 3) { entries.push([path, 'Grouped results · see full JSON']); return; }
+    for (const [key, child] of Object.entries(item)) visit(child, path ? `${path} / ${key}` : key, depth + 1);
+  }
+  visit(value, '', 0);
+  if (!entries.length) entries.push(['Summary', 'Empty recorded object']);
+  for (const [label, value] of entries) { const item = document.createElement('div'); item.className = 'summary-item'; const caption = document.createElement('span'); caption.className = 'caption'; caption.textContent = label; const result = document.createElement('strong'); result.textContent = typeof value === 'string' ? value : json(value); item.append(caption, result); host.append(item); }
+}
+function overview() {
+  const allRecords = list(data.records), allProbes = list(data.probes);
+  text('recordedScope', typeof data.scope === 'string' ? data.scope : 'No additional scope recorded.');
+  text('sceneCount', new Set(allRecords.map(r => r.sceneId)).size); text('recordCount', allRecords.length);
+  text('methodCount', [...new Set(allRecords.map(r => r.method))].join(' + ') || 'No methods recorded');
+  text('completedCount', allProbes.filter(p => p.status === 'completed').length);
+  text('completionDetail', `${allProbes.length} total recorded probes`);
+  text('unresolvedCount', `${allProbes.filter(p => p.status === 'error').length} / ${allProbes.filter(p => p.status === 'missing').length}`);
+  summaryPreview('primarySummary', data.summary); summaryPreview('realSummary', data.realSummary);
+  exact('summaryJson', data.summary); exact('realSummaryJson', data.realSummary); exact('evidenceJson', {scope:data.scope, evidence:data.evidence});
+  fillFilter('splitFilter', [...allRecords, ...allProbes].map(r => r.split), 'All splits');
+  fillFilter('methodFilter', [...allRecords, ...allProbes].map(r => r.method), 'All methods');
+  fillFilter('armFilter', allProbes.map(p => p.arm), 'All arms');
+  fillFilter('goalFilter', allProbes.map(p => p.goalM), 'All goals', value => `${value} m`);
+  fillFilter('sceneFilter', allRecords.map(r => r.sceneId), 'All scenes');
+  applyFilters();
+}
+function applyFilters() {
+  pause(); const previous = currentRecord;
+  const [split, method, arm, goal, scene] = filterIds.map(id => $(id).value);
+  probes = list(data.probes).filter(p => (!split || String(p.split) === split) && (!method || String(p.method) === method) && (!arm || String(p.arm) === arm) && (!goal || String(p.goalM) === goal) && (!scene || String(p.sceneId) === scene));
+  const probeRecords = new Set(probes.map(p => p.recordId));
+  records = list(data.records).filter(r => (!split || String(r.split) === split) && (!method || String(r.method) === method) && (!scene || String(r.sceneId) === scene) && (!(arm || goal) || probeRecords.has(r.id)));
+  scenes = [...new Set(records.map(r => r.sceneId))];
+  text('matchCount', `${scenes.length} scenes · ${records.length} estimates · ${probes.length} choices`);
+  const select = $('recordSelect'); select.replaceChildren();
+  records.forEach((r, i) => option(select, i, `${r.sceneId} · ${r.method} · ${r.split} · ${r.id}`));
+  select.disabled = !records.length;
+  if (!records.length) option(select, '', 'No matching image estimates');
+  const oldIndex = records.findIndex(r => r.id === previous?.id); select.value = String(Math.max(0, oldIndex));
+  showRecord();
+}
+function imageUrl(path) {
+  if (typeof path !== 'string' || !path) return null;
+  const cleaned = path.replace(/\\/g, '/').replace(/^\.\//, '').replace(/^\/+/, '');
+  if (!cleaned.startsWith('.runtime/') || cleaned.split('/').some(part => part === '..')) return null;
+  try { const url = new URL('/' + cleaned, location.href); return url.origin === location.origin && url.pathname.startsWith('/.runtime/') ? url.href : null; } catch { return null; }
+}
+function showImage(id, path, label) {
+  const img = $(id), empty = $(id + 'Empty'), url = imageUrl(path);
+  text(id + 'Path', typeof path === 'string' ? path : 'No image path recorded');
+  img.dataset.url = url || ''; img.hidden = true; empty.hidden = false; empty.textContent = url ? 'Loading saved image…' : 'No valid saved image path';
+  img.alt = `${label} · ${currentRecord?.sceneId || 'recorded scene'} · ${currentRecord?.method || 'depth estimate'}`;
+  img.onload = () => { if (img.dataset.url === url && img.src === url) { img.hidden = false; empty.hidden = true; } };
+  img.onerror = () => { if (img.dataset.url === url) { img.hidden = true; empty.hidden = false; empty.textContent = 'Saved image is unavailable at this path.'; } };
+  if (url) img.src = url; else img.removeAttribute('src');
+}
+function svgNode(name, attrs, value) { const el = document.createElementNS('http://www.w3.org/2000/svg', name); for (const [key, val] of Object.entries(attrs)) el.setAttribute(key, val); if (value !== undefined) el.textContent = value; return el; }
+function drawDepth(observation, reference) {
+  const plot = $('depthPlot'); plot.replaceChildren();
+  const interval = list(observation.axialDepthIntervalM), measured = observation.axialDepthM;
+  const intervalValid = interval.length === 2 && interval.every(finite) && interval[0] <= interval[1];
+  const values = [measured, reference, ...(intervalValid ? interval : [])].filter(finite);
+  if (!values.length) { plot.append(svgNode('text', {x:32,y:60,fill:'#a6b6c8','font-size':16}, 'No finite depth estimate or reference recorded.')); return; }
+  const minimum = Math.min(0, ...values), maximum = Math.max(1, ...values) * 1.15, x = n => 40 + (n - minimum) / (maximum - minimum) * 910;
+  plot.append(svgNode('line', {x1:40,y1:75,x2:950,y2:75,stroke:'#41566d','stroke-width':1}));
+  for (let i = 0; i <= 5; i++) { const v = minimum + (maximum - minimum) * i / 5; plot.append(svgNode('line', {x1:x(v),y1:71,x2:x(v),y2:80,stroke:'#41566d'}), svgNode('text', {x:x(v),y:101,fill:'#a6b6c8','font-size':13,'text-anchor':'middle'}, `${fmt(v)} m`)); }
+  if (intervalValid) plot.append(svgNode('rect', {x:x(interval[0]),y:40,width:Math.max(2,x(interval[1])-x(interval[0])),height:20,fill:'#78e4c2',opacity:.25,rx:3}));
+  if (finite(reference)) plot.append(svgNode('line', {x1:x(reference),y1:27,x2:x(reference),y2:76,stroke:'#ffd08a','stroke-width':3}), svgNode('text', {x:Math.max(92,Math.min(888,x(reference))),y:19,fill:'#ffd08a','font-size':13,'text-anchor':'middle'}, 'Reference Z'));
+  if (finite(measured)) plot.append(svgNode('circle', {cx:x(measured),cy:50,r:7,fill:'#78e4c2'}));
+  plot.setAttribute('aria-label', `Measured Z ${metres(measured)}; interval ${intervalValid ? interval.map(metres).join(' to ') : 'unknown'}; evaluation-only reference Z ${metres(reference)}`);
+}
+function showRecord() {
+  const oldProbe = currentProbes[Number($('probeSelect').value)];
+  currentRecord = records[Number($('recordSelect').value)] || null;
+  $('sampleBody').hidden = !currentRecord; $('sampleEmpty').hidden = !!currentRecord;
+  text('sampleEmpty', list(data.records).length ? 'No image estimates match these filters. Reset filters to browse all saved evidence.' : 'No image estimates recorded yet. Empty evidence is not a measured result.');
+  const sceneIndex = currentRecord ? scenes.indexOf(currentRecord.sceneId) : -1;
+  text('scenePosition', sceneIndex >= 0 ? `Scene ${sceneIndex + 1} of ${scenes.length}` : 'No matching scenes');
+  $('prevScene').disabled = sceneIndex <= 0; $('nextScene').disabled = sceneIndex < 0 || sceneIndex >= scenes.length - 1; $('playSamples').disabled = scenes.length < 2;
+  if (!currentRecord) return;
+  const r = currentRecord, obs = object(r.observation) ? r.observation : {}, evaluation = object(r.evaluation) ? r.evaluation : {};
+  text('sampleTitle', r.sceneId);
+  $('sampleTags').replaceChildren(badge(r.method), badge(r.split), badge(evaluation.family || 'Family not recorded'), badge(`Target: ${obs.targetStatus || 'unknown'}`, obs.targetStatus === 'single' ? 'good' : 'warn'));
+  showImage('leftImage', r.leftPath, 'Recorded left camera RGB input'); showImage('rightImage', r.rightPath, 'Recorded right camera RGB image'); showImage('depthImage', r.depthPath, 'Derived saved depth visualization');
+  text('measuredDepth', metres(obs.axialDepthM));
+  const interval = list(obs.axialDepthIntervalM), validInterval = interval.length === 2 && interval.every(finite);
+  text('measuredInterval', validInterval ? `${fmt(interval[0])}–${fmt(interval[1])} m` : 'Unknown');
+  text('referenceDepth', metres(evaluation.referenceAxialDepthM)); text('validFraction', finite(obs.validFraction) ? `${fmt(obs.validFraction * 100)}%` : 'Unknown');
+  text('intervalMeaning', present(obs.intervalMeaning) ? `Recorded interval meaning: ${obs.intervalMeaning}` : 'The interval meaning was not recorded. It is not assumed to be a calibrated confidence interval.');
+  text('depthDifference', finite(obs.axialDepthM) && finite(evaluation.referenceAxialDepthM) ? `Estimate − reference: ${fmt(obs.axialDepthM - evaluation.referenceAxialDepthM)} m. Absolute error: ${metres(Math.abs(obs.axialDepthM - evaluation.referenceAxialDepthM))}.` : 'Depth error is unknown because the estimate or reference is missing.');
+  drawDepth(obs, evaluation.referenceAxialDepthM); exact('recordJson', r);
+  currentProbes = probes.filter(p => p.recordId === r.id);
+  const select = $('probeSelect'); select.replaceChildren(); currentProbes.forEach((p, i) => option(select, i, `${metres(p.goalM)} goal · ${p.arm} · ${p.status || 'status unknown'} · ${p.id}`));
+  select.disabled = !currentProbes.length;
+  if (!currentProbes.length) option(select, '', 'No matching choices');
+  const selected = currentProbes.findIndex(p => p.id === oldProbe?.id), paired = currentProbes.findIndex(p => p.arm === oldProbe?.arm && p.goalM === oldProbe?.goalM);
+  select.value = String(Math.max(0, selected >= 0 ? selected : paired)); showProbe();
+}
+function selectedAction(probe) {
+  const meta = object(probe.meta) ? probe.meta : {}, answer = probe.answer;
+  if (!present(answer)) return 'No answer recorded; no selected action can be resolved.';
+  const key = String(answer), names = ['options', 'actionMap', 'actions', 'actionByChoice', 'actionById', 'menu'];
+  for (const name of names) {
+    const map = meta[name];
+    if (object(map) && Object.hasOwn(map, key)) {
+      const mapped = map[key];
+      if (object(mapped) && typeof mapped.action === 'string') return `${mapped.action}${finite(mapped.deltaM) ? ` · displacement ${fmt(mapped.deltaM)} m` : ''}\n${json(mapped)}`;
+      return json(mapped);
+    }
+    if (Array.isArray(map)) {
+      const match = map.find(item => object(item) && ['id','key','choice','name','answer','label'].some(field => String(item[field]) === key));
+      if (match) return json(match);
+    }
+  }
+  if (Object.hasOwn(meta, key)) return json(meta[key]);
+  return 'Action mapping was not resolved automatically. Inspect the original action map and metadata below.';
+}
+function showProbe() {
+  const index = Number($('probeSelect').value), p = currentProbes[index];
+  $('probeEmpty').hidden = !!p; $('probeBody').hidden = !p;
+  $('prevProbe').disabled = !p || index <= 0; $('nextProbe').disabled = !p || index >= currentProbes.length - 1;
+  if (!p) return;
+  text('goalTitle', `Goal distance: ${metres(p.goalM)}`);
+  $('probeTags').replaceChildren(badge(p.arm), badge(p.method), badge(p.split), badge(p.status || 'Status not recorded', p.status === 'completed' ? 'good' : p.status === 'error' ? 'bad' : 'warn'));
+  text('answerText', present(p.answer) ? (typeof p.answer === 'string' ? p.answer : json(p.answer)) : 'No answer recorded');
+  text('actionText', selectedAction(p)); text('scoreText', p.score === undefined ? 'No score recorded' : json(p.score));
+  $('probeError').hidden = !present(p.error); text('probeError', present(p.error) ? `Recorded error: ${typeof p.error === 'string' ? p.error : json(p.error)}` : '');
+  exact('requestJson', p.request); exact('responseJson', p.response); exact('metaJson', {expected:p.expected, meta:p.meta}); exact('scoreJson', {status:p.status, score:p.score, timing:p.timing, error:p.error}); exact('probeJson', p);
+}
+function changeScene(delta, fromSlideshow = false) {
+  if (!fromSlideshow) pause(); if (!currentRecord) return;
+  const next = scenes.indexOf(currentRecord.sceneId) + delta;
+  if (next < 0 || next >= scenes.length) { pause(); return; }
+  const indices = records.map((r,i) => ({r,i})).filter(({r}) => r.sceneId === scenes[next]);
+  const selected = indices.find(({r}) => r.method === currentRecord.method) || indices[0];
+  $('recordSelect').value = String(selected.i); showRecord();
+}
+function pause() { if (slideTimer !== null) clearInterval(slideTimer); slideTimer = null; text('playSamples', 'Play sample slideshow'); $('playSamples').setAttribute('aria-pressed', 'false'); }
+function play() {
+  if (slideTimer !== null) { pause(); return; } if (scenes.length < 2) return;
+  if (scenes.indexOf(currentRecord?.sceneId) >= scenes.length - 1) { $('recordSelect').value = '0'; showRecord(); }
+  text('playSamples', 'Pause sample slideshow'); $('playSamples').setAttribute('aria-pressed', 'true');
+  slideTimer = setInterval(() => { changeScene(1, true); if (scenes.indexOf(currentRecord?.sceneId) >= scenes.length - 1) pause(); }, 3000);
+}
+async function load() {
+  pause(); $('reload').disabled = true; $('loadStatus').className = 'status'; text('loadStatus', 'Loading ./replay.json…');
+  try {
+    const response = await fetch('./replay.json', {cache:'no-store'});
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const loaded = await response.json();
+    if (!object(loaded) || !Array.isArray(loaded.records) || !Array.isArray(loaded.probes)) throw new Error('Expected an object with records and probes arrays.');
+    data = loaded; overview(); text('loadStatus', `Loaded ${data.records.length} image estimates and ${data.probes.length} saved choices. Read-only local evidence.`);
+  } catch (error) {
+    $('loadStatus').className = 'status error'; text('loadStatus', `Could not load ./replay.json: ${error.message}. Serve this viewer beside replay.json from the repository's local HTTP host.${list(data.records).length ? ' Previously loaded evidence remains visible.' : ''}`);
+  } finally { $('reload').disabled = false; }
+}
+filterIds.forEach(id => $(id).addEventListener('change', applyFilters));
+$('resetFilters').addEventListener('click', () => { filterIds.forEach(id => { $(id).value = ''; }); applyFilters(); });
+$('recordSelect').addEventListener('change', () => { pause(); showRecord(); });
+$('probeSelect').addEventListener('change', showProbe);
+$('prevScene').addEventListener('click', () => changeScene(-1)); $('nextScene').addEventListener('click', () => changeScene(1));
+$('prevProbe').addEventListener('click', () => { $('probeSelect').value = String(Math.max(0, Number($('probeSelect').value) - 1)); showProbe(); });
+$('nextProbe').addEventListener('click', () => { $('probeSelect').value = String(Math.min(currentProbes.length - 1, Number($('probeSelect').value) + 1)); showProbe(); });
+$('playSamples').addEventListener('click', play); $('reload').addEventListener('click', load);
+document.addEventListener('visibilitychange', () => { if (document.hidden) pause(); });
+load();
+</script>
+</body>
+</html>

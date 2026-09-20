@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>Round 1 · Jev Evidence Lab</title>
+<style>
+:root{--bg:#090f17;--panel:#111b27;--panel2:#172333;--line:#29394b;--text:#edf3fa;--muted:#a2b3c6;--mint:#71e5c1;--amber:#ffca81;--red:#ff8b98;--blue:#84baff;font:15px/1.5 system-ui,sans-serif;color:var(--text);background:var(--bg)}
+*{box-sizing:border-box}body{margin:0}a{color:var(--mint);text-underline-offset:4px}button,input,select{font:inherit}button,select{color:var(--text);background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:9px 12px}button{cursor:pointer}button:hover{border-color:var(--mint)}button:disabled{cursor:default;opacity:.4}button.primary{background:var(--mint);color:#09211a;border-color:var(--mint);font-weight:750}input[type=range]{width:100%;accent-color:var(--mint)}input[type=checkbox]{accent-color:var(--mint)}:focus-visible{outline:3px solid var(--blue);outline-offset:3px}[hidden]{display:none!important}
+main{max-width:1440px;margin:auto;padding:34px 34px 64px}.eyebrow{font:700 11px/1.5 ui-monospace,monospace;letter-spacing:.17em;color:var(--mint);text-transform:uppercase}.topline,.row,.section-head,.controls{display:flex;align-items:center;gap:12px}.topline,.section-head{justify-content:space-between}.brand{display:flex;gap:10px;align-items:center}.mark{width:23px;height:23px;border:1px solid var(--mint);border-radius:50%;position:relative}.mark:after{content:"";position:absolute;width:7px;height:7px;background:var(--mint);border-radius:50%;left:7px;top:7px}nav{display:flex;gap:22px;font-size:13px}h1{font-size:clamp(31px,4vw,49px);font-weight:680;letter-spacing:-.045em;line-height:1.12;margin:30px 0 12px}h2{font-size:23px;font-weight:650;letter-spacing:-.025em;margin:0}h3{font-size:14px;margin:0 0 9px}p{margin:0 0 12px}.intro{color:var(--muted);max-width:870px;font-size:16px}.scope{border-left:3px solid var(--amber);padding:12px 16px;background:#241f19;color:#f4d6ac;border-radius:0 8px 8px 0;font-size:13px;margin:24px 0}.scope strong{color:var(--amber)}.scope p{margin:4px 0 0}.status{color:var(--muted);font-size:13px}.status.error{color:var(--red)}.badge{border:1px solid var(--line);border-radius:99px;padding:4px 9px;font:12px ui-monospace,monospace;color:var(--muted);white-space:nowrap}.badge.good{color:var(--mint);border-color:#2d665a}.badge.bad{color:var(--red);border-color:#693c46}.badge.warn{color:var(--amber);border-color:#635134}.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:20px 0}.card{padding:19px 21px;background:var(--panel);border:1px solid var(--line);border-radius:11px}.metric{font-size:31px;font-weight:640;line-height:1.3;font-variant-numeric:tabular-nums}.caption,.muted{color:var(--muted);font-size:12px}.metric-label{color:var(--muted);font-size:12px;margin-bottom:7px}.section{margin-top:38px}.section-head{margin-bottom:17px}.section-head .eyebrow{margin-bottom:5px}.panel{background:var(--panel);border:1px solid var(--line);border-radius:11px;overflow:hidden}.pad{padding:20px}.grid2{display:grid;grid-template-columns:1fr 1fr;gap:15px}.controls{flex-wrap:wrap}.controls label{display:grid;gap:5px;color:var(--muted);font-size:12px}.controls .inline{display:flex;align-items:center;gap:7px}.controls select{min-width:140px}.grow{flex:1;min-width:230px}select{max-width:100%}.divider{border-top:1px solid var(--line);margin:17px 0}table{width:100%;border-collapse:collapse;font-size:13px;text-align:left}th{color:var(--muted);font-weight:500}th,td{padding:10px 12px;border-bottom:1px solid var(--line)}tr:last-child td{border:0}td.number{text-align:right;font-variant-numeric:tabular-nums}.scroll{overflow:auto}.hint{color:var(--muted);font-size:12px;margin-top:9px}.pill-row{display:flex;flex-wrap:wrap;gap:7px;margin:15px 0}.probe-title{font-size:18px;font-weight:600;overflow-wrap:anywhere}.request-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}details{border:1px solid var(--line);border-radius:8px;background:#0d1621;margin-top:10px;min-width:0}summary{cursor:pointer;padding:11px 13px;font-size:13px;color:var(--muted)}details[open]>summary{border-bottom:1px solid var(--line);color:var(--text)}pre{font:12px/1.55 ui-monospace,SFMono-Regular,Consolas,monospace;white-space:pre-wrap;overflow-wrap:anywhere;margin:0;padding:14px;max-height:430px;overflow:auto;color:#cedbea}.empty{padding:34px;text-align:center;color:var(--muted)}.camera-head{display:flex;justify-content:space-between;gap:12px;padding:13px 16px;border-bottom:1px solid var(--line);font-size:13px}.camera-head strong{font-weight:550}.camera-well{position:relative;aspect-ratio:16/10;display:grid;place-items:center;background:#050a10;overflow:hidden}.camera-well img{width:100%;height:100%;object-fit:contain;image-rendering:auto}.camera-well .empty{position:absolute;padding:20px}.camera-foot{padding:12px 16px;min-height:58px;font:12px/1.5 ui-monospace,monospace;color:var(--muted);overflow-wrap:anywhere}.camera-source{border-color:#62513c}.camera-source .camera-head{color:var(--amber)}.transport{margin:16px 0}.transport-top{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:11px}.time{font:15px ui-monospace,monospace;font-variant-numeric:tabular-nums;margin-right:auto}.transport button{padding:8px 12px}.transport select{padding:8px}.readouts{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:9px;overflow:hidden}.readout{background:var(--panel);padding:13px 15px}.readout strong{display:block;margin:5px 0 0;font:20px ui-monospace,monospace}.action{color:var(--mint);font-size:23px;font-weight:650;overflow-wrap:anywhere}.decision-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}.plot{width:100%;height:180px;display:block}.legend{display:flex;gap:18px;font-size:12px;color:var(--muted)}.dot{display:inline-block;width:7px;height:7px;background:var(--mint);border-radius:50%;margin-right:6px}.dot.amber{background:var(--amber)}footer{border-top:1px solid var(--line);margin-top:36px;padding-top:20px;color:var(--muted);font-size:12px;display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}.nowrap{white-space:nowrap}
+@media(max-width:900px){main{padding:24px 20px}.cards,.readouts{grid-template-columns:repeat(2,1fr)}.grid2,.request-grid{grid-template-columns:1fr}.camera-well{aspect-ratio:16/9}.topline{align-items:flex-start}nav{gap:12px;flex-wrap:wrap;justify-content:flex-end}.section-head{align-items:flex-start}.controls .grow{width:100%}}
+@media(max-width:520px){main{padding:20px 12px}nav{font-size:12px}.brand .eyebrow{max-width:100px}.card{padding:13px}.metric{font-size:26px}.pad{padding:14px}.controls label{flex:1}.controls select{min-width:110px}.section-head{flex-wrap:wrap}.time{width:100%;order:-1}.readout{padding:10px}.readout strong{font-size:17px}.camera-head{font-size:12px}.badge{font-size:11px}}
+</style>
+</head>
+<body>
+<main>
+  <div class="topline"><div class="brand"><span class="mark" aria-hidden="true"></span><span class="eyebrow">Jev / Evidence Lab</span></div><nav aria-label="Page sections"><a href="#probes">Fixed probes</a><a href="#replay">Camera replay</a><a href="replay.json">Raw data ↗</a></nav></div>
+  <header><h1>What changed while Jev thought?</h1><p class="intro">Round 1 · Inspect the answers, replay the acquired camera frames, and trace the age of the evidence behind each decision.</p></header>
+  <div class="scope"><strong>Component study only</strong><p>Analytic record probes plus a yaw-only RGB camera component. No metric following or hardware qualification.</p><p id="recordedScope"></p></div>
+  <div class="row"><span class="badge" id="loadBadge">Loading evidence</span><span id="loadStatus" class="status" role="status">Reading local replay.json…</span><button id="reload" type="button">Reload</button></div>
+  <div class="cards" aria-label="Recorded evidence overview">
+    <div class="card"><div class="metric-label">Fixed probes recorded</div><div class="metric" id="probeCount">—</div><div class="caption" id="probeSub">Awaiting evidence</div></div>
+    <div class="card"><div class="metric-label">Correct probe outcomes</div><div class="metric" id="correctCount">—</div><div class="caption" id="correctSub">Scored records only</div></div>
+    <div class="card"><div class="metric-label">Unsafe probe outcomes</div><div class="metric" id="unsafeCount">—</div><div class="caption" id="unsafeSub">As graded in the record</div></div>
+    <div class="card"><div class="metric-label">Camera episodes recorded</div><div class="metric" id="episodeCount">—</div><div class="caption" id="episodeSub">Actual acquired frames</div></div>
+  </div>
+  <details><summary>Recorded study summary and evidence inventory</summary><pre id="studyJson"></pre></details>
+  <section class="section" id="probes" aria-labelledby="probeHeading">
+    <div class="section-head"><div><div class="eyebrow">01 / Analytic records</div><h2 id="probeHeading">Fixed probe inspector</h2></div><span class="badge" id="probeMatch">No data loaded</span></div>
+    <div class="panel pad">
+      <div class="controls"><label>Arm<select id="probeArm"><option value="">All arms</option></select></label><label>Split<select id="probeSplit"><option value="">All splits</option></select></label><label>Outcome<select id="probeOutcome"><option value="">All outcomes</option><option value="correct">Correct</option><option value="incorrect">Incorrect</option><option value="unsafe">Unsafe</option><option value="unscored">Unscored</option></select></label><label class="grow">Probe<select id="probeSelect" aria-label="Select fixed probe"></select></label></div>
+      <p class="hint">Counts describe recorded probes. Repeated cases and related probes are not independent environments.</p>
+      <div class="scroll"><table aria-label="Probe results by arm and split"><thead><tr><th>Arm / split</th><th>Recorded</th><th>Correct / scored</th><th>Unsafe / assessed</th></tr></thead><tbody id="probeTable"></tbody></table></div>
+      <div id="probeEmpty" class="empty">No recorded probes yet.</div>
+      <div id="probeBody" hidden><div class="divider"></div><div class="probe-title" id="probeTitle"></div><div class="pill-row" id="probeTags"></div><p class="muted" id="probeTask"></p>
+        <div class="request-grid"><details open><summary>Initial request · exact record</summary><pre id="initialRequest"></pre></details><details open><summary>Initial response · exact record</summary><pre id="initialResponse"></pre></details></div>
+        <div class="request-grid" id="followupBody" hidden><details><summary>Follow-up request · exact record</summary><pre id="followupRequest"></pre></details><details><summary>Follow-up response · exact record</summary><pre id="followupResponse"></pre></details></div>
+        <details><summary>Expected outcome, grading details and timing</summary><pre id="probeDetails"></pre></details>
+      </div>
+    </div>
+  </section>
+  <section class="section" id="replay" aria-labelledby="replayHeading">
+    <div class="section-head"><div><div class="eyebrow">02 / The world continues</div><h2 id="replayHeading">Continuous camera replay</h2></div><span class="badge">Recorded frames only</span></div>
+    <div class="panel pad"><div class="controls"><label class="grow">Episode<select id="episodeSelect" aria-label="Select camera episode"></select></label><span id="episodeStatus" class="badge">Awaiting evidence</span></div><p id="episodeSummary" class="hint">No camera episodes recorded yet.</p></div>
+    <div id="episodeEmpty" class="empty">Camera evidence will appear here when a recorded episode is available.</div>
+    <div id="episodeBody" hidden>
+      <div class="transport panel pad">
+        <div class="transport-top"><button class="primary" id="play" type="button" aria-label="Play recorded frames">▶ Play</button><button id="prevFrame" type="button" aria-label="Previous recorded frame">‹ Frame</button><button id="nextFrame" type="button" aria-label="Next recorded frame">Frame ›</button><output class="time" id="timeLabel">0.00 / 0.00 s</output><label class="muted" for="speed">Speed</label><select id="speed"><option value="0.25">0.25×</option><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="2">2×</option><option value="4">4×</option></select></div>
+        <label class="muted" for="timeline">Episode time · acquisition timeline</label><input id="timeline" type="range" min="0" max="1" step="1" value="0" aria-label="Scrub episode time">
+        <p class="hint">Space: play / pause · ← →: recorded frame · [ ]: decision. Images change only at recorded acquisitions.</p>
+      </div>
+      <div class="grid2">
+        <figure class="panel" style="margin:0"><figcaption class="camera-head"><strong>Latest camera at replay time</strong><span id="currentFrameTime">—</span></figcaption><div class="camera-well"><img id="currentImage" alt="Latest recorded RGB camera acquisition at the replay cursor" hidden><div id="currentImageEmpty" class="empty">No acquisition at this time</div></div><div class="camera-foot" id="currentFrameInfo">—</div></figure>
+        <figure class="panel camera-source" style="margin:0"><figcaption class="camera-head"><strong>Source seen by selected decision</strong><span id="sourceFrameTime">—</span></figcaption><div class="camera-well"><img id="sourceImage" alt="Recorded RGB camera acquisition used by the selected Jev decision" hidden><div id="sourceImageEmpty" class="empty">Select a recorded decision</div></div><div class="camera-foot" id="sourceFrameInfo">—</div></figure>
+      </div>
+      <div class="panel pad" style="margin-top:16px">
+        <div class="controls"><button id="prevDecision" type="button" aria-label="Previous decision">‹ Decision</button><label class="grow">Decision<select id="decisionSelect" aria-label="Select recorded decision"></select></label><button id="nextDecision" type="button" aria-label="Next decision">Decision ›</button><label class="inline"><input type="checkbox" id="followCursor" checked>Follow replay time</label></div>
+        <p class="hint">Selecting a decision seeks to its application, response, or request time, in that order. Turn off “Follow replay time” to keep one source frame in view.</p>
+        <div class="divider"></div><div class="decision-head"><div><div class="metric-label">Selected action</div><div class="action" id="selectedAction">—</div></div><span id="decisionPhase" class="badge">No decision</span></div>
+        <div class="readouts"><div class="readout"><span class="caption">Source age at assembly</span><strong id="assemblyAge">—</strong></div><div class="readout"><span class="caption">HTTP latency</span><strong id="httpLatency">—</strong></div><div class="readout"><span class="caption">Source age at application</span><strong id="applicationAge">—</strong></div><div class="readout"><span class="caption">New frames during request</span><strong id="newFrames">—</strong></div></div>
+        <p class="hint" id="decisionTiming">A response is not proof of application or completion.</p>
+        <div class="request-grid"><details><summary>Exact decision request</summary><pre id="decisionRequest"></pre></details><details><summary>Exact decision response</summary><pre id="decisionResponse"></pre></details></div>
+        <details><summary>Command and full decision timing</summary><pre id="decisionDetails"></pre></details>
+      </div>
+      <div class="grid2" style="margin-top:16px"><div class="panel pad"><h3>How old was the source?</h3><div class="legend"><span><i class="dot"></i>At request assembly</span><span><i class="dot amber"></i>At command application</span></div><svg id="agePlot" class="plot" viewBox="0 0 650 180" role="img" aria-label="Source age at assembly and application across recorded decisions"></svg><p id="ageSummary" class="hint"></p></div><div class="panel pad"><h3>Episode evidence</h3><p class="muted">Scores and execution stages below come from the saved episode. Missing values stay unknown; an admitted command does not establish physical completion.</p><details><summary>Exact episode summary</summary><pre id="episodeJson"></pre></details><details><summary>Recorded commands</summary><pre id="commandsJson"></pre></details><details><summary>Current and source frame metadata</summary><pre id="frameJson"></pre></details></div></div>
+    </div>
+  </section>
+  <footer><span>Jev / Round 1 · Local, read-only evidence playback</span><div class="row"><a href="replay.json">replay.json ↗</a><a href="summary.json">summary.json ↗</a></div></footer>
+</main>
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+const finite = value => typeof value === 'number' && Number.isFinite(value);
+const arr = value => Array.isArray(value) ? value : [];
+const fmt = value => finite(value) ? new Intl.NumberFormat('en', {maximumFractionDigits:1}).format(value) : '—';
+const ms = value => finite(value) ? `${fmt(value)} ms` : '—';
+const seconds = value => finite(value) ? `${(value / 1000).toFixed(2)} s` : '—';
+const exact = (id, value) => $(id).textContent = value === undefined ? 'Not recorded' : JSON.stringify(value, null, 2);
+const write = (id, value) => $(id).textContent = value;
+const root = new URL('./', location.href);
+let data = {probes:[], episodes:[]}, filtered = [], episode = null, frames = [], decisions = [], cursor = 0, duration = 0, selected = -1, playing = false, previousTick = 0, lastPaint = 0, animationId = null;
+function option(select, value, label) { const node = document.createElement('option'); node.value = value; node.textContent = label; select.append(node); }
+function badge(text, kind = '') { const node = document.createElement('span'); node.className = `badge ${kind}`; node.textContent = text; return node; }
+function fillFilter(id, values, all) { const el = $(id); el.replaceChildren(); option(el, '', all); [...new Set(values.map(String))].sort().forEach(value => option(el, value, value)); }
+function fraction(rows, key) { const assessed = rows.filter(row => typeof row[key] === 'boolean'); return `${assessed.filter(row => row[key]).length} / ${assessed.length}`; }
+function renderOverview() {
+  const probes = arr(data.probes), episodes = arr(data.episodes), correct = probes.filter(p => typeof p.correct === 'boolean'), unsafe = probes.filter(p => typeof p.unsafe === 'boolean');
+  write('recordedScope', typeof data.scope === 'string' ? data.scope : '');
+  write('probeCount', fmt(probes.length)); write('probeSub', `${new Set(probes.map(p => p.arm)).size} arms · ${new Set(probes.map(p => p.split)).size} splits`);
+  write('correctCount', fraction(probes, 'correct')); write('correctSub', correct.length ? `${(100 * correct.filter(p => p.correct).length / correct.length).toFixed(1)}% of scored records · ${probes.length - correct.length} unscored` : 'No scored probe outcomes yet');
+  write('unsafeCount', fraction(probes, 'unsafe')); write('unsafeSub', `${probes.length - unsafe.length} records without an unsafe assessment`);
+  write('episodeCount', fmt(episodes.length)); write('episodeSub', `${fmt(episodes.reduce((n, e) => n + arr(e.frames).length, 0))} frames · ${fmt(episodes.reduce((n, e) => n + arr(e.decisions).length, 0))} decisions`);
+  exact('studyJson', {summary:data.summary, evidence:data.evidence});
+  fillFilter('probeArm', probes.map(p => p.arm), 'All arms'); fillFilter('probeSplit', probes.map(p => p.split), 'All splits');
+  $('episodeSelect').replaceChildren(); episodes.forEach((e, i) => option($('episodeSelect'), i, `${e.arm} · ${e.pattern} · seed ${e.seed} · ${e.id}`));
+  $('episodeSelect').disabled = !episodes.length; if (!episodes.length) option($('episodeSelect'), '', 'No recorded episodes');
+  filterProbes(); chooseEpisode();
+}
+function filterProbes() {
+  const arm = $('probeArm').value, split = $('probeSplit').value, outcome = $('probeOutcome').value;
+  const rows = arr(data.probes).filter(p => (!arm || String(p.arm) === arm) && (!split || String(p.split) === split));
+  filtered = rows.filter(p => !outcome || (outcome === 'correct' && p.correct === true) || (outcome === 'incorrect' && p.correct === false) || (outcome === 'unsafe' && p.unsafe === true) || (outcome === 'unscored' && typeof p.correct !== 'boolean'));
+  const previous = $('probeSelect').selectedOptions[0]?.dataset.id;
+  $('probeSelect').replaceChildren(); filtered.forEach((p, i) => { option($('probeSelect'), i, `${p.id} · ${p.task ?? p.unit ?? ''}`); $('probeSelect').lastChild.dataset.id = p.id; });
+  const found = filtered.findIndex(p => p.id === previous); if (found >= 0) $('probeSelect').value = found;
+  $('probeSelect').disabled = !filtered.length; if (!filtered.length) option($('probeSelect'), '', 'No matching probes');
+  write('probeMatch', `${filtered.length} / ${arr(data.probes).length} probes`);
+  const groups = new Map(); for (const p of filtered) { const key = `${p.arm} / ${p.split}`; if (!groups.has(key)) groups.set(key, []); groups.get(key).push(p); }
+  $('probeTable').replaceChildren(); for (const [key, group] of groups) { const tr = document.createElement('tr'); [key, group.length, fraction(group, 'correct'), fraction(group, 'unsafe')].forEach((value, i) => { const td = document.createElement('td'); td.textContent = value; if (i) td.className = 'number'; tr.append(td); }); $('probeTable').append(tr); }
+  showProbe();
+}
+function showProbe() {
+  const p = filtered[Number($('probeSelect').value)]; $('probeEmpty').hidden = !!p; $('probeBody').hidden = !p;
+  write('probeEmpty', arr(data.probes).length ? 'No probes match these filters.' : 'No recorded probes yet. Empty data is not a measured result.'); if (!p) return;
+  write('probeTitle', p.id); write('probeTask', `${p.task ?? 'Task not recorded'} · unit: ${p.unit ?? 'not recorded'}`);
+  $('probeTags').replaceChildren(badge(p.arm), badge(p.split), badge(p.correct === true ? 'Correct' : p.correct === false ? 'Incorrect' : 'Unscored', p.correct === true ? 'good' : p.correct === false ? 'bad' : ''), badge(p.unsafe === true ? 'Unsafe outcome' : p.unsafe === false ? 'Unsafe: false' : 'Unsafe: unassessed', p.unsafe === true ? 'bad' : ''));
+  exact('initialRequest', p.initialRequest); exact('initialResponse', p.initialResponse); exact('followupRequest', p.followupRequest); exact('followupResponse', p.followupResponse);
+  $('followupBody').hidden = p.followupRequest === undefined && p.followupResponse === undefined; exact('probeDetails', {status:p.status, error:p.error, callStatuses:p.callStatuses, expected:p.expected, details:p.details, timing:p.timing});
+}
+function chooseEpisode() {
+  pause(); episode = arr(data.episodes)[Number($('episodeSelect').value)] ?? null;
+  frames = arr(episode?.frames).filter(f => finite(f.atMs)).slice().sort((a,b) => a.atMs-b.atMs); decisions = arr(episode?.decisions).filter(d => finite(d.atMs)).slice().sort((a,b) => a.atMs-b.atMs);
+  duration = Math.max(0, finite(episode?.summary?.simulatedMs) ? episode.summary.simulatedMs : 0, ...frames.map(f => f.atMs), ...decisions.map(d => d.atMs)); cursor = 0; selected = -1;
+  $('episodeEmpty').hidden = !!episode; $('episodeBody').hidden = !episode; $('followCursor').checked = true; if (!episode) { write('episodeStatus', 'Awaiting evidence'); write('episodeSummary', 'No camera episodes recorded yet.'); return; }
+  write('episodeStatus', episode.status ?? episode.summary?.status ?? 'Status not recorded');
+  const score = episode.summary?.score;
+  write('episodeSummary', `${seconds(episode.summary?.simulatedMs)} simulated · ${frames.length} acquisitions · ${decisions.length} decisions · ${fmt(episode.summary?.calls)} calls · framed ${seconds(score?.framedMs)} · visible ${seconds(score?.visibleMs)}`);
+  $('timeline').max = duration || 1; $('timeline').disabled = !duration; $('play').disabled = !duration || !frames.length;
+  $('decisionSelect').replaceChildren(); decisions.forEach((d, i) => option($('decisionSelect'), i, `${d.id} · assembled ${seconds(d.atMs)}`)); $('decisionSelect').disabled = !decisions.length;
+  if (!decisions.length) option($('decisionSelect'), '', 'No recorded decisions');
+  exact('episodeJson', {status:episode.status, errors:episode.errors, summary:episode.summary}); exact('commandsJson', episode.commands); renderPlot(); renderReplay(true);
+}
+function lastAt(items, at) { let lo = 0, hi = items.length - 1, answer = -1; while (lo <= hi) { const mid = (lo + hi) >> 1; if (items[mid].atMs <= at) { answer = mid; lo = mid + 1; } else hi = mid - 1; } return answer; }
+function imagePath(path) { if (typeof path !== 'string' || !path) return null; try { const url = new URL(path, root); return url.origin === root.origin && url.pathname.startsWith(root.pathname) ? url.href : null; } catch { return null; } }
+function showImage(id, path, emptyText) {
+  const img = $(id), empty = $(`${id}Empty`), url = imagePath(path);
+  if (img.dataset.path === (url ?? '') && img.dataset.empty === emptyText) return;
+  img.dataset.path = url ?? ''; img.dataset.empty = emptyText; img.hidden = true; empty.hidden = false; empty.textContent = emptyText;
+  if (!url) { img.removeAttribute('src'); return; }
+  img.onload = () => { if (img.src === url) { img.hidden = false; empty.hidden = true; } };
+  img.onerror = () => { if (img.src === url) { img.hidden = true; empty.hidden = false; empty.textContent = 'Recorded image unavailable: ' + path; } }; img.src = url;
+}
+function renderReplay(force = false) {
+  if (!episode) return;
+  $('timeline').value = cursor; $('timeline').setAttribute('aria-valuetext', seconds(cursor)); write('timeLabel', `${(cursor / 1000).toFixed(2)} / ${(duration / 1000).toFixed(2)} s`);
+  const frameIndex = lastAt(frames, cursor), frame = frames[frameIndex];
+  showImage('currentImage', frame?.path, 'No recorded acquisition at this time'); write('currentFrameTime', frame ? seconds(frame.atMs) : '—');
+  write('currentFrameInfo', frame ? `Acquired at ${seconds(frame.atMs)} · heading ${fmt(frame.headingDeg)}° · ${ms(cursor - frame.atMs)} before cursor\n${frame.path}` : 'No source has been acquired yet.');
+  $('prevFrame').disabled = !frames.length || frameIndex <= 0; $('nextFrame').disabled = !frames.length || frameIndex >= frames.length - 1;
+  const next = $('followCursor').checked ? lastAt(decisions, cursor) : selected;
+  if (force || next !== selected) { selected = next; renderDecision(); }
+  exact('frameJson', {latestAtCursor:frame, selectedSource:frames.find(f => f.path === decisions[selected]?.sourceFrame)});
+  updatePhase(); const plotCursor = $('plotCursor'); if (plotCursor) { const x = 46 + 589 * (duration ? cursor / duration : 0); plotCursor.setAttribute('x1', x); plotCursor.setAttribute('x2', x); }
+}
+function updatePhase() {
+  const d = decisions[selected]; let label = 'No decision at replay time';
+  if (d) label = cursor < d.atMs ? 'Before request assembly' : d.status && d.status !== 'completed' ? 'Request failed / unresolved' : d.discardedLate && cursor >= duration ? 'Late reply discarded' : finite(d.applicationAtMs) && cursor >= d.applicationAtMs ? 'Application recorded' : finite(d.responseAtMs) && cursor >= d.responseAtMs ? 'Response recorded' : 'Awaiting response';
+  write('decisionPhase', label);
+}
+function renderDecision() {
+  const d = decisions[selected]; $('decisionSelect').selectedIndex = selected; $('prevDecision').disabled = selected <= 0; $('nextDecision').disabled = selected >= decisions.length - 1;
+  const source = d && frames.find(f => f.path === d.sourceFrame);
+  showImage('sourceImage', d?.sourceFrame, d ? 'No source image recorded for this decision' : 'No decision assembled at this replay time');
+  write('sourceFrameTime', seconds(d?.sourceAcquiredMs)); write('sourceFrameInfo', d ? `Source acquired ${seconds(d.sourceAcquiredMs)} · heading ${fmt(source?.headingDeg)}°\n${d.sourceFrame ?? 'Source path not recorded'}` : 'Play or select a decision to inspect its evidence.');
+  write('selectedAction', d?.selectedAction ?? (d ? 'No action selected' : '—')); write('assemblyAge', ms(d?.sourceAgeAtAssemblyMs)); write('httpLatency', ms(d?.httpLatencyMs)); write('applicationAge', ms(d?.sourceAgeAtApplicationMs)); write('newFrames', fmt(d?.newerFramesDuringRequest));
+  write('decisionTiming', d ? `Episode time: assembled ${seconds(d.atMs)} · response ${seconds(d.responseAtMs)} · application ${seconds(d.applicationAtMs)}. Wall age at application: ${ms(d.wallAgeAtApplicationMs)}. HTTP start is retained as a wall-clock timestamp in the exact record.` : 'A response is not proof of application or completion.');
+  exact('decisionRequest', d?.request); exact('decisionResponse', d?.response);
+  if (d) { const {request, response, ...rest} = d; exact('decisionDetails', rest); } else exact('decisionDetails', undefined);
+}
+function seek(value) { cursor = Math.max(0, Math.min(duration, value)); renderReplay(); }
+function jumpDecision(index) { if (!decisions.length) return; pause(); selected = Math.max(0, Math.min(decisions.length - 1, index)); $('followCursor').checked = false; const d = decisions[selected]; cursor = Math.max(0, Math.min(duration, finite(d.applicationAtMs) ? d.applicationAtMs : finite(d.responseAtMs) ? d.responseAtMs : d.atMs)); renderReplay(true); }
+function stepFrame(delta) { pause(); const index = lastAt(frames, cursor); const target = frames[Math.max(0, Math.min(frames.length - 1, index + delta))]; if (target) seek(target.atMs); }
+function pause() { playing = false; if (animationId !== null) cancelAnimationFrame(animationId); animationId = null; write('play', '▶ Play'); $('play').setAttribute('aria-label', 'Play recorded frames'); }
+function togglePlay() { if (!$('play').disabled && episode) { if (playing) pause(); else { if (cursor >= duration) seek(0); playing = true; previousTick = performance.now(); lastPaint = 0; write('play', 'Ⅱ Pause'); $('play').setAttribute('aria-label', 'Pause recorded frames'); animationId = requestAnimationFrame(tick); } } }
+function tick(now) { animationId = null; if (!playing) return; cursor = Math.min(duration, cursor + (now - previousTick) * Number($('speed').value)); previousTick = now; if (now - lastPaint >= 50 || cursor >= duration) { renderReplay(); lastPaint = now; } if (cursor >= duration) pause(); else animationId = requestAnimationFrame(tick); }
+function svgNode(name, attrs, content) { const el = document.createElementNS('http://www.w3.org/2000/svg', name); for (const [key, value] of Object.entries(attrs)) el.setAttribute(key, value); if (content !== undefined) el.textContent = content; return el; }
+function renderPlot() {
+  const svg = $('agePlot'); svg.replaceChildren(); const ages = decisions.flatMap(d => [d.sourceAgeAtAssemblyMs, d.sourceAgeAtApplicationMs]).filter(finite), maxAge = Math.max(1, ...ages);
+  const x = t => 46 + 589 * (duration ? t / duration : 0), y = a => 146 - 116 * a / maxAge;
+  for (const fraction of [0, .5, 1]) { const yy = y(maxAge * fraction); svg.append(svgNode('line', {x1:46, y1:yy, x2:635, y2:yy, stroke:'#29394b'}), svgNode('text', {x:39, y:yy + 4, fill:'#a2b3c6', 'font-size':10, 'text-anchor':'end'}, fmt(maxAge * fraction))); }
+  svg.append(svgNode('text', {x:46, y:15, fill:'#a2b3c6', 'font-size':10}, 'source age (ms)'), svgNode('text', {x:46, y:170, fill:'#a2b3c6', 'font-size':10}, '0 s'), svgNode('text', {x:635, y:170, fill:'#a2b3c6', 'font-size':10, 'text-anchor':'end'}, seconds(duration)));
+  for (const [key, color] of [['sourceAgeAtAssemblyMs','#71e5c1'], ['sourceAgeAtApplicationMs','#ffca81']]) {
+    const values = decisions.filter(d => finite(d[key]));
+    svg.append(svgNode('polyline', {points:values.map(d => `${x(d.atMs)},${y(d[key])}`).join(' '), fill:'none', stroke:color, 'stroke-width':1.5}));
+    for (const d of values) { const dot = svgNode('circle', {cx:x(d.atMs), cy:y(d[key]), r:2.5, fill:color}); dot.append(svgNode('title', {}, `${d.id}: ${ms(d[key])}`)); svg.append(dot); }
+  }
+  svg.append(svgNode('line', {id:'plotCursor', x1:46, x2:46, y1:24, y2:150, stroke:'#edf3fa', 'stroke-dasharray':'3 4', opacity:.6}));
+  const applied = decisions.map(d => d.sourceAgeAtApplicationMs).filter(finite).sort((a,b) => a-b), middle = Math.floor(applied.length / 2), median = applied.length ? applied.length % 2 ? applied[middle] : (applied[middle - 1] + applied[middle]) / 2 : undefined;
+  write('ageSummary', ages.length ? `${applied.length} recorded application ages · median ${ms(median)} · max ${ms(applied.length ? applied[applied.length - 1] : undefined)}. X-axis: request assembly time. Missing ages are omitted.` : 'No recorded source ages. No zero-age values are inferred.');
+}
+async function load() {
+  pause(); $('reload').disabled = true; write('loadBadge', 'Loading evidence'); write('loadStatus', 'Reading local replay.json…'); $('loadStatus').classList.remove('error');
+  try { const response = await fetch(new URL('replay.json', root), {cache:'no-store'}); if (!response.ok) throw new Error(`HTTP ${response.status}`); const loaded = await response.json(); if (!loaded || typeof loaded !== 'object' || !Array.isArray(loaded.probes) || !Array.isArray(loaded.episodes)) throw new Error('Expected probes and episodes arrays'); data = loaded; renderOverview(); write('loadBadge', data.probes.length || data.episodes.length ? 'Evidence loaded' : 'Evidence pending'); write('loadStatus', `Local record loaded at ${new Date().toLocaleTimeString()}. Reload to read new evidence.`); }
+  catch (error) { write('loadBadge', 'Load unavailable'); write('loadStatus', `Could not load replay.json: ${error.message}. Serve this page beside the evidence file and reload.`); $('loadStatus').classList.add('error'); }
+  finally { $('reload').disabled = false; }
+}
+['probeArm','probeSplit','probeOutcome'].forEach(id => $(id).addEventListener('change', filterProbes));
+$('probeSelect').addEventListener('change', showProbe); $('episodeSelect').addEventListener('change', chooseEpisode); $('reload').addEventListener('click', load);
+$('play').addEventListener('click', togglePlay); $('timeline').addEventListener('input', () => { pause(); seek(Number($('timeline').value)); });
+$('prevFrame').addEventListener('click', () => stepFrame(-1)); $('nextFrame').addEventListener('click', () => stepFrame(1));
+$('prevDecision').addEventListener('click', () => jumpDecision(selected - 1)); $('nextDecision').addEventListener('click', () => jumpDecision(selected + 1));
+$('decisionSelect').addEventListener('change', () => jumpDecision(Number($('decisionSelect').value))); $('followCursor').addEventListener('change', () => renderReplay(true));
+document.addEventListener('keydown', event => { if (event.target.closest('input,select,textarea,button,summary,a') || event.ctrlKey || event.altKey || event.metaKey || !episode) return; if (event.code === 'Space') { event.preventDefault(); togglePlay(); } else if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') { event.preventDefault(); stepFrame(event.key === 'ArrowLeft' ? -1 : 1); } else if (event.key === '[' || event.key === ']') { event.preventDefault(); jumpDecision(selected + (event.key === '[' ? -1 : 1)); } });
+document.addEventListener('visibilitychange', () => { if (document.hidden) pause(); });
+load();
+</script>
+</body>
+</html>

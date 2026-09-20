@@ -20,6 +20,10 @@ for (const panel of root.querySelectorAll<HTMLElement>(".panels > article")) {
   panel.prepend(button);
 }
 const sensorLink = document.createElement('a');
+const pixelLink = document.createElement('a');
+pixelLink.href = '/pixels.html?report=/.runtime/experiments/jev-pixels-held-out-v1/report.json';
+pixelLink.textContent = 'Camera-only control lab';
+root.querySelector('nav')!.prepend(pixelLink, document.createTextNode(' · '));
 sensorLink.href = '?report=/.runtime/experiments/jev-sensors-held-out-v1/report.json';
 sensorLink.textContent = 'Camera + TF-Luna comparison';
 root.querySelector('nav')!.prepend(sensorLink, document.createTextNode(' · '));
