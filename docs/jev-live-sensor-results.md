@@ -43,8 +43,12 @@ frames measured `stereo` 62-86 ms / `total` 109-134 ms / zero skips at 5 Hz; a r
 later of the identical 5 frames measured `stereo` 164-182 ms / `total` 243-274 ms — a ~2x swing on
 identical work, only explained by changing background load. The independent review's own isolated
 `CachedStereo` probe under the same game load measured 143 ms median, close to the contended
-`stereo` figures below and nowhere near the ~10-20 ms an isolated SGBM call on a 640x360 pair would
-be expected to take on this GPU-adjacent CPU path when the machine is quiet.
+`stereo` figures below. For reference, the archived 60-frame paired benchmark
+(`.runtime/experiments/jev-library-v1/benchmark/results.json`) recorded a 153 ms median / 169 ms p95
+SGBM stereo stage and a 77 ms median detector-predict stage in its optimized arm, so the live
+stereo stage is not far out of line with the only earlier complete-compute measurement; whether
+that benchmark was itself taken on a quiet machine is not recorded. What an uncontended SGBM stage
+costs on this host is therefore still unmeasured, not assumed.
 
 **Consequence:** every absolute timing number below (per-stage ms, acquire-to-emit/receipt age,
 fps) is real, measured evidence of what happened on this run, but is an **upper bound under heavy
@@ -199,17 +203,18 @@ Two outputs:
 
 ## Exact commands
 
-All paths below are absolute on this machine; substitute your own. Run from this worktree's root
-unless noted. `$det` is the pinned detector venv (Torch/Ultralytics/OpenCV; also runs the CPU-only
+Paths are relative to the repository root, where the git-ignored `.runtime/` environments, weights
+and recorded frames live; from a git worktree with an empty `.runtime/`, point them at the checkout that
+has them. Run from the repository root unless noted. `$det` is the pinned detector venv (Torch/Ultralytics/OpenCV; also runs the CPU-only
 sensor tests — no GPU is used unless the sensor actually runs against a real checkpoint).
 
 ```powershell
-$det = 'C:\Users\danhm\tools\robots-world\.runtime\experiments\jev-library-v1\detector\.venv\Scripts\python.exe'
-$manifest = 'C:\Users\danhm\tools\robots-world\.runtime\experiments\jev-library-v1\perception-inputs.json'
-$ckpt = 'C:\Users\danhm\tools\robots-world\.runtime\experiments\jev-library-v1\detector\models\yolo11s-seg.pt'
+$det = '.runtime\experiments\jev-library-v1\detector\.venv\Scripts\python.exe'
+$manifest = '.runtime\experiments\jev-library-v1\perception-inputs.json'
+$ckpt = '.runtime\experiments\jev-library-v1\detector\models\yolo11s-seg.pt'
 $runtimeRoot = '.runtime\experiments\jev-live-sensor-v1\detector-runtime'   # writable; never the pinned venv
 $ids = '.runtime\experiments\jev-live-sensor-v1\sample-frame-ids.txt'      # predeclared 300-frame sample
-$nervelet = 'C:\Users\danhm\tools\nervelet\.claude\worktrees\nervelet-agent-library-1abd34\dist\index.js'
+$nervelet = '<built nervelet checkout>\dist\index.js'   # a nervelet build that includes core Source/processSource
 
 # Python unit tests (CPU-only, no GPU/weights/network) — 56 tests, this package only:
 & $det -m unittest discover -s experiments/jev-library/sensor -t experiments/jev-library -p "test_*.py" -v
