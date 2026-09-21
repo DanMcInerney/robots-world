@@ -77,3 +77,16 @@ The most promising next tests are fresh distant/moving target acquisition, same-
 - [Open the comparison replay](http://127.0.0.1:8870/.runtime/experiments/jev-library-v1/index.html?route=occlusion-lookalike-confirmation-1&frame=20&left=archived_cluster&right=ffs_mask)
 
 Runtime evidence is local and ignored by Git; the report and implementation remain durable repository files. The replay link requires the local server on port 8870.
+
+## Text-encoding probes for scouting and range following, 2026-09-20
+
+Both predeclared gates **failed** at confirmation. For an unseen object, a memory-less current view and a
+dated log of past views gave Jev zero useful positive-case answers (0/72 combined); only per-offered-option
+computed consequences showed real directional competence, and even that failed specifically when choosing
+among a translate, a hold and a re-scan yaw with no single option's text distinguishing the right one. For
+range following, a compact derived signed-error scalar matched a richer per-option "resulting range" on
+development, then produced 4 confirmation-only harmful choices while the richer form held at 116/116 across
+both splits — a caution against trusting a cheaper representation on a development tie alone. The run also
+exposed a flaw in this experiment's own payload-based selection rule, not only in Jev's answers. Present
+range decisions with the resulting range/error computed for every option, not a signed scalar alone; do not
+yet trust a compact scouting-state summary for search decisions. [Full results and reproduction](docs/jev-scout-encodings-results.md).
