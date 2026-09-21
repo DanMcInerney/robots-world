@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {mkdtemp, rm, writeFile} from 'node:fs/promises';
+import {mkdir, mkdtemp, rm, writeFile} from 'node:fs/promises';
 import {resolve} from 'node:path';
 import {generateScoutCases} from '../experiments/jev-scout-encodings/scout.ts';
 import {generateRangeCases} from '../experiments/jev-scout-encodings/range.ts';
@@ -128,6 +128,7 @@ test('gates() requires BOTH the numeric threshold and completeness (exact expect
 
 // ---------- shared meter: ceilings and stop-on-error, exercised the same way run.ts uses them ----------
 async function tempRoot(t: {after(fn: () => void): void}) {
+  await mkdir(resolve('.runtime'), {recursive: true}); // absent on a fresh checkout (git-ignored)
   const dir = await mkdtemp(resolve('.runtime', 'scout-encodings-test-'));
   t.after(() => rm(dir, {recursive: true, force: true}));
   return dir;

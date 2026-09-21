@@ -6,6 +6,7 @@ import {digest} from '../experiments/jev-spatial-text/transport.ts';
 import {assertUnchangedPrefix, verify} from '../experiments/jev-scout-encodings/run.ts';
 
 async function tempRoot(t: {after(fn: () => void): void}) {
+  await mkdir(resolve('.runtime'), {recursive: true}); // absent on a fresh checkout (git-ignored)
   const dir = await mkdtemp(resolve('.runtime', 'scout-encodings-freeze-test-'));
   t.after(() => rm(dir, {recursive: true, force: true}));
   return dir;
