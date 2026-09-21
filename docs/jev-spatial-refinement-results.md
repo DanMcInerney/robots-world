@@ -99,6 +99,27 @@ All episodes used 20.008–20.034 seconds of wall time for 20 simulated seconds;
 
 [All trial evidence and pairwise scores](../.runtime/experiments/jev-spatial-refinement-v1/live-results.json), [aggregate](../.runtime/experiments/jev-spatial-refinement-v1/live-summary.json), [post-Stop audit](../.runtime/experiments/jev-spatial-refinement-v1/checks/live-post-stop-audit.json), [independent integration review](../.runtime/experiments/jev-spatial-refinement-v1/integration-review.md), [one repair/check pass](../.runtime/experiments/jev-spatial-refinement-v1/integration-repairs.md).
 
+### Passive-observer addendum, 2026-09-21
+
+An independent design review found that the 74%/29% headline above never states the same run's own passive
+(do-nothing) baseline. Recomputed here directly from `../.runtime/experiments/jev-spatial-refinement-v1/live-results.json`'s
+per-trial `passiveFixedObserver` field (not restated from the review without checking): on the **moving-car**
+pattern, passive framed **17.2/40 s** (8.6 s in each of two 20 s episodes) — versus the selected after-bearing
+arm's 25.0/40 s and the receipt baseline's 13.0/40 s above. Passive alone beats the baseline and is not far
+below the selected arm on this pattern. On **transient-occlusion**, both Jev arms saw the target *less* than
+doing nothing: selected-arm visible time 25.0/40 s, baseline 20.8/40 s, passive **32.0/40 s** visible (16.0 s in
+each of two 20 s episodes). On the two stationary-target patterns (stationary-offset, interrupted-command),
+passive framed 0.0/40 s in both, since the target starts off-centre and a stationary drone never re-centres it.
+
+Of the selected arm's total 72.0 s framing gain over baseline across all four patterns (118.4 vs 46.4 s),
+**55.4 s (77%) comes from the two stationary-target patterns** (stationary-offset: 39.0−18.8=20.2 s;
+interrupted-command: 39.0−3.8=35.2 s) rather than the moving-car/transient-occlusion patterns the mission
+actually needs. This does not change any number in the table above — every framed/visible figure there is
+exactly as originally measured — it adds the passive comparison and the stationary/moving split that the
+original write-up omitted. See F77 in [design-failures.md](design-failures.md) and the
+[find-and-follow ladder](jev-find-follow-ladder.md), which requires a passive baseline at every rung going
+forward.
+
 ## Completed campaign and next direction
 
 This refinement campaign completed **2,015 Jev calls**: 1,200 original fixed requests, 192 temporal follow-ups and 623 timed-control calls. All completed, with zero unresolved/HTTP/schema failures, **6,589,360 reported input tokens**, and an estimated **$0.2768** at the assumed $0.042/million input tokens. The timed stage accounts for 1,600,278 tokens. Offline work added **68 stereo pairs / 180 matcher evaluations**, with mechanical and exact numerical replay checks. This excludes the earlier campaign; its evidence and failed full-mission result remain intact.

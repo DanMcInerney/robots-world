@@ -17,6 +17,7 @@ from pathlib import Path
 
 import numpy as np
 
+from sensor.frames import OnDemandFrameProvider
 from sensor.main import ShutdownWatcher, load_samples, run_sensor
 from sensor.records import SCHEMA
 from sensor.testing import FakeDetector, FakeStereoBackend, ManualFrameProvider, make_detection, make_mask, write_fixture_frame
@@ -189,6 +190,57 @@ class RunSensorTests(unittest.TestCase):
         frame_records = [r for r in _lines(stream) if "type" not in r]
         seqs = [r["seq"] for r in frame_records]
         self.assertEqual(seqs, sorted(set(seqs)), "monotonic, never-repeated seq even under shutdown")
+
+
+class OnDemandRunSensorTests(unittest.TestCase):
+    """Exercises the on-demand mode (frames.OnDemandFrameProvider + run_sensor's samples=None /
+    acquired_clock_label path) end to end with fake Detector/StereoBackend doubles — the same
+    pattern the replay-mode tests above use, no GPU/weights/network."""
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+        self.dir = Path(self._tmp.name)
+
+    def test_one_stdin_line_in_produces_exactly_one_frame_record_out_preserving_the_simulated_clock(self):
+        sample = write_fixture_frame(self.dir, "f0")
+        request_line = json.dumps({"id": "engine-frame-1", "leftPath": sample["leftPath"], "rightPath": sample["rightPath"],
+                                    "calibrationPath": sample["calibrationPath"], "acquiredMs": 4200.0})
+        detector = FakeDetector(detections=[make_detection()], masks=make_mask(30, 40)[None])
+        stream = io.StringIO()
+        result = run_sensor(samples=None, rate_hz=None, detector=detector, stereo_backend=FakeStereoBackend(),
+                             score_threshold=0.25, max_objects=8, max_line_bytes=4000, manifest_path=None,
+                             model_meta={"checkpointName": "fake"}, out=stream, shutdown_event=threading.Event(),
+                             poll_timeout_s=0.05, provider=OnDemandFrameProvider(stream=io.StringIO(request_line + "\n")),
+                             acquired_clock_label="engine-simulated-ms")
+        self.assertEqual(result["processed"], 1)
+        self.assertEqual(result["reason"], "end_of_replay")  # provider exhaustion (stdin EOF) uses the same terminal reason
+        records = _lines(stream)
+        hello = records[0]
+        self.assertEqual(hello["type"], "hello")
+        self.assertEqual(hello["source"], "on-demand")
+        self.assertIsNone(hello["calibration"])  # no fixed manifest to summarize ahead of time; never guessed
+        self.assertEqual(hello["clock"]["acquiredClock"], "engine-simulated-ms")
+        frame = records[1]
+        self.assertEqual(frame["schema"], SCHEMA)
+        self.assertEqual(frame["acquired"], {"clock": "engine-simulated-ms", "ms": 4200.0})  # verbatim engine clock, never this process's own
+        self.assertTrue(frame["valid"])
+        self.assertEqual(records[-1]["type"], "bye")
+
+    def test_two_requests_in_sequence_each_get_exactly_one_response_with_increasing_seq(self):
+        sample = write_fixture_frame(self.dir, "f0")
+        lines = "\n".join(json.dumps({"id": f"r{i}", "leftPath": sample["leftPath"], "rightPath": sample["rightPath"],
+                                       "calibrationPath": sample["calibrationPath"], "acquiredMs": 1000.0 + i * 200}) for i in range(2))
+        detector = FakeDetector(detections=[make_detection()], masks=make_mask(30, 40)[None])
+        stream = io.StringIO()
+        run_sensor(samples=None, rate_hz=None, detector=detector, stereo_backend=FakeStereoBackend(),
+                   score_threshold=0.25, max_objects=8, max_line_bytes=4000, manifest_path=None, model_meta={},
+                   out=stream, shutdown_event=threading.Event(), poll_timeout_s=0.05,
+                   provider=OnDemandFrameProvider(stream=io.StringIO(lines + "\n")), acquired_clock_label="engine-simulated-ms")
+        frame_records = [r for r in _lines(stream) if "type" not in r]
+        self.assertEqual([r["seq"] for r in frame_records], [1, 2])
+        self.assertEqual([r["acquired"]["ms"] for r in frame_records], [1000.0, 1200.0])
+        self.assertEqual(sum(r["skippedSinceLast"] for r in frame_records), 0)  # on-demand never skips: one request, one response
 
 
 class LoadSamplesTests(unittest.TestCase):

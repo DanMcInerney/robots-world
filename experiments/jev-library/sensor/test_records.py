@@ -63,6 +63,15 @@ class FrameRecordTests(unittest.TestCase):
         self.assertEqual(parsed["valid"], True)
         self.assertEqual(set(parsed["timingMs"]), {"decode", "detect", "stereo", "aggregate", "total"})
 
+    def test_acquired_clock_label_defaults_to_unix_epoch_ms_and_is_overridable(self):
+        default_record, _ = frame_record(seq=1, acquired_ms=5.0, emitted_ms=6.0, skipped_since_last=0,
+                                          objects=[], objects_total=0, timing_ms={}, max_objects=8)
+        self.assertEqual(default_record["acquired"], {"clock": "unix-epoch-ms", "ms": 5.0})
+        engine_record, _ = frame_record(seq=1, acquired_ms=5.0, emitted_ms=6.0, skipped_since_last=0,
+                                         objects=[], objects_total=0, timing_ms={}, max_objects=8,
+                                         acquired_clock_label="engine-simulated-ms")
+        self.assertEqual(engine_record["acquired"], {"clock": "engine-simulated-ms", "ms": 5.0})
+
     def test_no_goal_specific_fields_anywhere_in_a_frame_record(self):
         record, _ = frame_record(seq=1, acquired_ms=0.0, emitted_ms=0.0, skipped_since_last=0,
                                   objects=[_object(0.5)], objects_total=1, timing_ms={}, max_objects=8)
@@ -85,6 +94,11 @@ class FailedFrameRecordTests(unittest.TestCase):
     def test_reason_is_bounded(self):
         record = failed_frame_record(seq=1, acquired_ms=0.0, emitted_ms=0.0, skipped_since_last=0, reason="x" * 10_000)
         self.assertLessEqual(len(record["reason"]), 200)
+
+    def test_acquired_clock_label_is_threaded_through(self):
+        record = failed_frame_record(seq=1, acquired_ms=9.0, emitted_ms=0.0, skipped_since_last=0, reason="x",
+                                      acquired_clock_label="engine-simulated-ms")
+        self.assertEqual(record["acquired"], {"clock": "engine-simulated-ms", "ms": 9.0})
 
 
 class EnvelopeRecordTests(unittest.TestCase):

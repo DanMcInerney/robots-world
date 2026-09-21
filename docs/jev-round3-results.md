@@ -41,6 +41,8 @@ Camera poses came from actual Rapier drone motion; images were rendered afterwar
 
 Then resume the already defined signed-distance-error wording probes and short executed approach/hold trials. The proposed compact text structure—target observations, identity uncertainty, measured range/bearing, goal-relative error and separate local geometry—remains the direction to test. This round does not yet establish an ideal Jev representation, and did not test edge features or learned stereo.
 
+**2026-09-21 note:** the signed-distance-error probe this closing sentence points to is superseded — F75 ran it (`signed-error`) alongside a per-option `after-range` alternative and found `after-range` robust (116/116 both splits) where `signed-error` failed confirmation (4 harmful choices) despite an identical development score. The detection-coverage gap this round found (61/100, 0/17 beyond 12 m) is addressed by the [find-and-follow ladder](jev-find-follow-ladder.md)'s L0 detection-envelope sweep, which also corrects this document's implicit range assumption: the actual rendered reference-range span across all 1,200 frames was 5.15–14.998 m, so "0/17 beyond 12 m" describes only the 12–15 m band, not a tested-and-failed 15–40 m range.
+
 ## Replay and evidence
 
 - [Open the local replay](http://127.0.0.1:8870/.runtime/experiments/jev-round3-v1/index.html#replay): select a route, scrub or play; all 1,200 frames retain stereo RGB, overlay, depth and evaluator reference.

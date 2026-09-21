@@ -165,6 +165,8 @@ The important distinction is between **where a target was measured**, **where th
 
 First retain the current corrected controls for representation comparisons. After that, a separate control experiment could offer:
 
+> **Overtaken, 2026-09-21:** this recommendation to retain the then-current controls (the 43,218-tuple factored velocity menu) is superseded by F53 and F57–F61: code-computed per-option consequences on a small bounded menu (seven yaw actions, five range actions), not the factored velocity menu, is what actually produced measured framing/range gains. See F78's [find-and-follow ladder](jev-find-follow-ladder.md), which uses the consequence-carrying menus throughout.
+
 | Illustrative question | Choices |
 | --- | ---: |
 | Short body-relative XYZ velocity | 125 tuples: five declared levels per axis, including zero |
@@ -233,6 +235,8 @@ Then qualify car recognition and identity on realistic assets and recorded camer
 ## The first test I would prioritize
 
 **Qualify stereo geometry, then compare current depth against the same depth plus persistent, motion-aligned spatial history, with corrected controls held fixed.** Include the no-depth/no-history baseline and a nonmetric-history arm so we can identify what actually helped.
+
+> **Overtaken, 2026-09-21:** this first-priority recommendation (persistent motion-aligned spatial history) is superseded as the *next* test by F53, F57–F61 and F75: history-based encodings did not survive their own comparisons (F53's richer-history arms centred for 0–2.4 s where receipts centred for 17–18.6 s; F57's own-history regression found no format won a new control trial), while code-computed per-option consequences (`after-bearing`, `after-range`, `sector-consequences`) did. The current priority is the [find-and-follow ladder](jev-find-follow-ladder.md) (F78), which tests those consequence encodings against a real sensor, real latency and search/obstacle fixtures for the first time — stereo geometry qualification (§ "Stereo vision" above) remains a live prerequisite, reused in the ladder's L3/L4/L8 range gates.
 
 Start with compact object/surface records, a small occupied/free/unknown summary and a dated view ledger. Test a relational text encoding of those same facts before adding a large scene graph or learned depth stack. If the estimator fails, improve the measurements. If Jev misreads accurate records, improve the encoding. If it reads them correctly but chooses poor actions, the remaining failure lies in decision/control. That separation is the central learning objective.
 

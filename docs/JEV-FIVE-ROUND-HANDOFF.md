@@ -2,6 +2,8 @@
 
 Prepared 18 September 2026. This is an execution handoff, not a report of new inference. Earlier results below are measured; the five rounds are proposed. The accompanying [new-session prompt](jev-five-round-prompt.md) requests implementation, real inference, analysis and successive redesign, not just planning.
 
+> **Superseded for new work, 2026-09-21:** this document's "use full relevant menus and explicit conditional branches" instruction (§ "New-session execution prompt" below and its own body) is superseded by F57–F61 and F75. The 43,218-tuple full factored menu these five rounds actually used produced 0/24 full-mission passes (F43) and 0/56 mission passes across the whole campaign; the small bounded menus that later worked (seven yaw actions, five range actions, twelve search actions, each carrying code-computed per-option consequences) are not "full menus" in this document's sense. New work should follow the [find-and-follow ladder](jev-find-follow-ladder.md) (F78) instead of this handoff's menu guidance; the mission sentence, ownership boundary and campaign-hygiene practices below (freezes, seals, disjoint development/confirmation, fresh-seed confirmation) remain sound and are reused there.
+
 ## Objective and ownership
 
 Give Jev this exact mission in every main-task request:

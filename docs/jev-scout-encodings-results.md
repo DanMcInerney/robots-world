@@ -241,3 +241,32 @@ Sealed artifact hashes are unchanged by this write-up (verified: `analysis.json`
 `b80a9ba1b749e29ada0d78c4392e89560f54c22b90704f33e6f62c8cc5c4e1ec`, `gates.json`
 `bfffc20492d1990149b1d3481a8c0a538a5bc192c061792b96068b169c37c438`, matching `completion-seal.json`).
 Generated evidence and credentials remain outside Git.
+
+## Transfer gaps to the real sensor and scene, 2026-09-21
+
+This run's S/R facts were stipulated fixture arithmetic (`oracle.ts`'s own header: "All geometry is stipulated
+fixture arithmetic, not a sensor or a model call"), never rendered camera images or an acquired stereo
+measurement, as already stated above under "Not established." Three concrete gaps found while adapting this
+encoding for a real-sensor engine, verified against source:
+
+- **The oracle assumes a 36° camera HFOV and ten 36°-wide sectors** (`experiments/jev-scout-encodings/oracle.ts:27-28`:
+  `SECTOR_WIDTH_DEG = 360 / N_SECTORS` and `CAMERA_HFOV_DEG = 36`, chosen, per the file's own comment, so HFOV
+  equals sector width and "covers sector k" stays unambiguous). The real `stereo-objects/2` sensor's rig is
+  **70° HFOV** (`experiments/jev-round3-plan.md`'s camera rig, matching the live sensor's own detector/stereo
+  pipeline). A 70° camera covers roughly two 36°-wide sectors at once, which changes both the `coveredSectors`
+  geometry and the `component_goal` rule's premise that a covered sector is unambiguous; this was not tested at
+  70° here.
+- **No fresh-start family exists.** Every `s1` case has exactly one never-inspected sector by construction
+  (`scout.ts:92-101`, cited by the reviewing pass); the very first real search decision — where most or all
+  sectors are unseen and several options tie on coverage — was never generated or scored.
+- **Sector memory is not re-projected under translation.** `scout.ts:23`'s sector facts are built from heading
+  alone; a `translate`/`advance`/`retreat` action's effect on which physical sectors are "covered" after the
+  drone has moved is not modelled, only which sector the drone currently faces.
+
+**Correction, 2026-09-21 (second review):** an earlier version of this note claimed the ladder's L5 itself
+covers 70° HFOV and a fresh-start case; at that time it did neither. The ladder now has a dedicated prerequisite
+rung, **L5-pre**, a static 70°-HFOV probe run before any closed-loop L5 episode, with explicit fresh-start,
+viewpoint-change and asymmetric-prior-coverage families (fixing the 36° gap and the single-never-inspected-sector
+assumption above). L5's own closed-loop episodes run at the real sensor's 70° HFOV throughout. Position-aware
+re-projection under translation remains unimplemented and is the reason L9's full-mission search phase is
+scoped as heading-based scouting followed by binding, not a mapped occupancy search.

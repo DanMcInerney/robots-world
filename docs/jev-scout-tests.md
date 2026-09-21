@@ -2,6 +2,8 @@
 
 **Designed, not yet a real-Jev result.** The prior `klt-servo-1804` was useful camera tracking in an open arena. It did not qualify scouting, routing or recovery. [Failures F20–F24](design-failures.md) motivate this separate experiment; old results stay frozen.
 
+**2026-09-21 note:** this "designed, not yet a real-Jev result" header is now stale in a specific way — the design below was never run as written, but its topologies and gates were the basis for the later `jev-scout-techniques` (F27, 18/18 flights, 0/18 missions) and the five-round campaign (F35–F43, 0/24 full-mission passes), both of which *did* run and are real-Jev results. As of F77/F78, no version of this scouting design has ever had a capable reference controller reading the same request text/menu — every 0/N figure above and in F27/F35–F43 is therefore unattributable to Jev specifically. The [find-and-follow ladder](jev-find-follow-ladder.md)'s L5/L9 reuse this document's three topologies (turn-to-find, behind-wall, occlusion-course) rebuilt at car scale with a `reference` controller required before any Jev call.
+
 ## Task and scenes
 
 Give the exact English goal in [scenario.ts](../experiments/jev-scout/scenario.ts): find the moving blue object in unfamiliar space, follow, recover when lost, keep its visible centre in the central 30% and visible width at 8–14%, wide FOV, avoid contact. It does not reveal where to search, the route, seed or cover timing.

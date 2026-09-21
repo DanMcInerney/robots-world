@@ -6,10 +6,12 @@ the same behaviour end to end through the real pacer thread, with generous timeo
 """
 from __future__ import annotations
 
+import io
+import json
 import time
 import unittest
 
-from sensor.frames import FrameRef, ReplayFrameProvider, _LatestSlot
+from sensor.frames import FrameRef, OnDemandFrameProvider, ReplayFrameProvider, _LatestSlot
 
 
 def _ref(seq: int) -> FrameRef:
@@ -128,6 +130,44 @@ class ReplayFrameProviderTests(unittest.TestCase):
             ReplayFrameProvider([], rate_hz=10.0)
         with self.assertRaises(ValueError):
             ReplayFrameProvider([{"id": "s0", "leftPath": "l", "rightPath": "r", "calibrationPath": "c"}], rate_hz=0)
+
+
+class OnDemandFrameProviderTests(unittest.TestCase):
+    def test_returns_exactly_one_frame_per_stdin_line_preserving_the_callers_acquired_ms(self):
+        lines = [
+            json.dumps({"id": "a", "leftPath": "/l1.png", "rightPath": "/r1.png", "calibrationPath": "/c1.json", "acquiredMs": 12345.5}),
+            json.dumps({"id": "b", "leftPath": "/l2.png", "rightPath": "/r2.png", "calibrationPath": "/c2.json", "acquiredMs": 12545.5}),
+        ]
+        provider = OnDemandFrameProvider(stream=io.StringIO("\n".join(lines) + "\n"))
+        first = provider.take_latest(0, timeout_s=0)
+        self.assertEqual(first.frame.seq, 1)
+        self.assertEqual(first.frame.id, "a")
+        self.assertEqual(first.frame.left_path, "/l1.png")
+        self.assertEqual(first.frame.acquired_ms, 12345.5)  # verbatim from the caller, not this process's own clock
+        self.assertEqual(first.skipped, 0)
+        self.assertFalse(first.exhausted)
+        second = provider.take_latest(first.frame.seq, timeout_s=0)
+        self.assertEqual(second.frame.seq, 2)
+        self.assertEqual(second.frame.id, "b")
+
+    def test_eof_marks_exhausted_never_skips(self):
+        provider = OnDemandFrameProvider(stream=io.StringIO(""))
+        result = provider.take_latest(0, timeout_s=0)
+        self.assertIsNone(result.frame)
+        self.assertTrue(result.exhausted)
+
+    def test_blank_lines_are_ignored_not_treated_as_eof_or_a_frame(self):
+        line = json.dumps({"id": "a", "leftPath": "l", "rightPath": "r", "calibrationPath": "c", "acquiredMs": 1.0})
+        provider = OnDemandFrameProvider(stream=io.StringIO(f"\n\n{line}\n"))
+        result = provider.take_latest(0, timeout_s=0)
+        self.assertEqual(result.frame.id, "a")
+        self.assertFalse(result.exhausted)
+
+    def test_start_wake_stop_are_harmless_no_ops(self):
+        provider = OnDemandFrameProvider(stream=io.StringIO(""))
+        provider.start()
+        provider.wake()
+        provider.stop()  # must not raise
 
 
 if __name__ == "__main__":

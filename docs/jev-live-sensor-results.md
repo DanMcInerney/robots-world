@@ -575,6 +575,57 @@ duplicated stdout stream with `newline='\n'`.
   intentionally regenerated with the stricter method (F6); the analysis script that produces it,
   not the underlying raw evidence, changed.
 
+## Quiet-machine re-measurement, 2026-09-21
+
+The contended-machine tables above (marked "upper bound only") remain as originally measured; this section
+adds the promised quiet-machine re-measurement rather than replacing them. Run 2026-09-20 ~23:52–23:54 local,
+game closed, on the same host: `.runtime/experiments/jev-live-sensor-v2/measurements-quiet/summary-{5,10,15}hz.json`
+(main checkout, git-ignored, verified directly from the JSON for this write-up), through the real Nervelet
+`processSource` + `SourceGroup` + `ObservationStore` consumer on the same predeclared 300-frame sample rule as
+the v1 run.
+
+| Rate | Processed / 300 | Skipped fraction | Steady-state fps | Acquire-to-consumer-receipt age (median / p95) | Total processing (median): stereo / detect |
+| --- | --- | --- | --- | --- | --- |
+| 5 Hz | 300 | 0% | 5.00 | 141.8 / 157.7 ms | 141.5 ms: 100.8 / 27.5 ms |
+| 10 Hz | 291 | 3% | 9.68 | 132.5 / 192.1 ms | 100.2 ms: 78.7 / 14.7 ms |
+| 15 Hz | 189 | 37% | 9.43 | 137.8 / 190.5 ms | 98.0 ms: 77.7 / 14.0 ms |
+
+These are the sensor's own steady-state figures, not an upper bound: total processing stays under the 5 Hz
+period even at the median, and 10/15 Hz both settle near the same 9.4–9.7 fps ceiling once model-load and the
+first five post-warmup frames are excluded, consistent with the qualitative shape the contended v1 run already
+predicted (stereo and detect dominate; processing exceeds the faster periods, so latest-wins skipping grows
+with rate).
+
+**Every summary still reports `contended:true`.** The tool's rule fires on GPU utilization above 15% (measured
+20–23% across all three runs) and on a foreign GPU compute app being present (PID 2576) drawing 17.5–23.6 W.
+That is roughly an order of magnitude below the earlier contended run's game (`bf6.exe`, ~98% utilization,
+~149 W). **Correction, 2026-09-21 (second review):** PID 2576 is confirmed as `dwm.exe` via `Get-Process`
+(coordinator-verified, not independently re-checked in this pass) — the Windows desktop compositor, not another
+GPU-bound workload; the earlier text here correctly guessed the mechanism but understated its confidence.
+
+**Two tool defects were hit and worked around, not fixed in this pass. Corrected sequence, re-read from file
+metadata (an earlier version of this account was imprecise about attempt count and cause):**
+1. A first attempt refused at **23:36:15 local**, correctly applying the contention rule
+   (`.runtime/experiments/jev-live-sensor-v2/measurements/contention-refused-{5,10,15}hz.json`) — **the game was
+   already closed by this point**; the refusal's own recorded signature (20–22% GPU, 17–18 W) is the same
+   light/idle signature as the successful run below, not the earlier ~150 W/~98% game signature. The refusal is
+   the tool's rule correctly firing on a nearly-idle GPU, not evidence the game was still running.
+2. A second attempt (~23:41–23:47 local, relative paths, no `--require-quiet`) produced three 0-byte timeout
+   files in `.runtime/experiments/jev-live-sensor-v2/measurements/` roughly 120 s apart (`raw-5hz.ndjson`
+   23:42:56, `raw-10hz.ndjson` 23:44:57, `raw-15hz.ndjson` 23:46:58) plus one more 0-byte file in
+   `measurements-bash/raw-5hz.ndjson` at 23:50:05 — in every case the sensor process exited immediately when
+   launched from a different working directory than it expected, and the tool did not detect the early exit,
+   instead waiting out its full 120 s timeout before returning.
+3. A third attempt, with absolute paths, produced the successful `measurements-quiet/` run at 23:53–23:54.
+
+The early-exit-detection defect is being fixed by the engine's other maker, not addressed here.
+
+The successful run at ~23:52–23:54 local used absolute paths and produced the summary tables above.
+**Corrected interpretation:** the sensor's real steady-state latency is now known and is the figure to cite going
+forward (LATEST_RESULTS.md's live-sensor section updated accordingly); the v1 contended tables remain useful only
+as an upper-bound sanity check, not as the sensor's characterization. See the [ladder document](jev-find-follow-ladder.md)'s
+L0 clock-qualification defaults, which use these figures directly (perception ≈140 ms median / ≈190 ms p95).
+
 ## See also
 
 - [Library comparison results](jev-library-comparison-results.md) — the batch recommendation this

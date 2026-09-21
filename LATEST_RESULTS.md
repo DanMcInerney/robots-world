@@ -61,6 +61,8 @@ OBSTACLE_CLEARANCE: unknown
 
 For Jev's limit of 255 choices per question, a small candidate set and a few bounded questions fit naturally: target A/B/unresolved; viewing direction left/maintain/right; distance response approach/maintain/retreat/insufficient evidence; next observation current view/scan/another view. These are proposed decision categories, not independently executable simultaneous commands. Resolve dependencies and check the joint action before execution. Claude Code can consume the same record and request additional evidence through available tools.
 
+**Supersession note, 2026-09-21:** these bare left/maintain/right and approach/maintain/retreat categories are superseded as a controller interface. F57–F61 and F75 (see [design-failures.md](docs/design-failures.md)) showed that options must carry per-option computed consequences (resulting bearing for every yaw option, resulting range for every range/distance option) rather than bare directional labels: the bare/raw-geometry arms scored 10–11/32 exact-optimum in component tests versus 32/32 for the consequence-carrying arms, and the consequence encodings are what produced the only measured framing/range improvements. The [find-and-follow ladder](docs/jev-find-follow-ladder.md) (F78) uses per-option-consequence `track`/`search` encodings throughout, not this bare-category illustration.
+
 The most promising next tests are fresh distant/moving target acquisition, same-color lookalikes and reacquisition after occlusion. Keep a YOLO11 control, isolate FFS range gains from identity policy, and measure the actual integrated pipeline before returning to executed approach/hold/follow experiments. The combined text interface above still needs controller-level testing.
 
 ## Durable evidence and implementation
@@ -100,3 +102,15 @@ latency is not yet known:** every timing run was taken while another application
 the recorded figures are contended upper bounds. Re-measure on a quiet machine before quoting a rate or age.
 [Schema, commands, measurements and failures](docs/jev-live-sensor-results.md); see F76 in the
 [failure log](docs/design-failures.md).
+
+**Update, 2026-09-21:** the quiet-machine re-measurement has been done. Acquisition-to-consumer-receipt age is
+**142 ms median / 158 ms p95 at 5 Hz**, **133/192 ms at 10 Hz (steady ≈9.7 fps, 3% skipped)**, and **138/190 ms
+at 15 Hz (steady ≈9.4 fps, 37% skipped)** through the real Nervelet consumer on a predeclared 300-frame sample
+with the contending game closed. Every summary still reports `contended:true` (the tool's strict rule fires on
+20–23% GPU utilization and a foreign compute process present, drawing 17.5–23.6 W — confirmed as `dwm.exe`, not
+another GPU-bound workload); these figures are the sensor's real steady-state performance under that light,
+mostly-idle load, not a measurement on a fully quiescent machine and not the earlier ~150 W/~98% contended upper
+bound. See the dated "Quiet-machine re-measurement" section in
+[jev-live-sensor-results.md](docs/jev-live-sensor-results.md) and the F76 addendum in
+[design-failures.md](docs/design-failures.md) for the full tables, how it was run, and the tool defects
+encountered along the way.

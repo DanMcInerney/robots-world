@@ -9,3 +9,8 @@ dist/
 .claude/
 __pycache__/
 *.py[cod]
+
+# A maker's own working scratch log (experiments/jev-find-follow/WORKLOG.md's own header: "Not for
+# commit... the coordinator removes it before merge") — engine-review-e3 finding 7 asked for this to
+# be a real, documented exclusion mechanism, not merely a convention nobody enforces.
+experiments/jev-find-follow/WORKLOG.md

@@ -31,17 +31,27 @@ DEFAULT_MAX_LINE_BYTES = 4000  # "comfortably < 4 KiB"; a line that would still 
 
 def hello_record(*, source: str, manifest_path: str, frame_count: int, rate_hz: float,
                   calibration: dict, model: dict, stereo: dict, score_threshold: float,
-                  max_objects: int, max_line_bytes: int, epoch_anchor_ms: float) -> dict:
+                  max_objects: int, max_line_bytes: int, epoch_anchor_ms: float,
+                  acquired_clock_label: str = "unix-epoch-ms") -> dict:
+    is_engine_clock = acquired_clock_label != "unix-epoch-ms"
+    note = (
+        "acquired.ms on frame records is NOT this process's own clock: it is the caller's own "
+        "simulated acquisition timestamp, carried through unchanged, one on-demand request at a "
+        "time (see frames.py's OnDemandFrameProvider). emittedMs remains this process's own "
+        "unix-epoch-ms wall clock, so acquired.ms and emittedMs are NOT comparable/subtractable "
+        "across this record."
+    ) if is_engine_clock else (
+        "acquired.ms/emittedMs on frame records are already unix epoch milliseconds "
+        "(high-resolution monotonic delta anchored once to wall-clock time at startup; "
+        "see clock.py). This anchor is retained for audit only; a consumer does not need "
+        "it to interpret acquired.ms/emittedMs."
+    )
     return {
         "schema": SCHEMA, "type": "hello", "source": source, "manifestPath": manifest_path,
         "frameCount": frame_count, "rateHz": rate_hz,
         "calibration": calibration, "model": model, "stereo": stereo,
         "thresholds": {"scoreThreshold": score_threshold, "maxObjects": max_objects, "maxLineBytes": max_line_bytes},
-        "clock": {"clock": "unix-epoch-ms", "epochAnchorMs": epoch_anchor_ms,
-                  "note": "acquired.ms/emittedMs on frame records are already unix epoch milliseconds "
-                          "(high-resolution monotonic delta anchored once to wall-clock time at startup; "
-                          "see clock.py). This anchor is retained for audit only; a consumer does not need "
-                          "it to interpret acquired.ms/emittedMs."},
+        "clock": {"clock": "unix-epoch-ms", "acquiredClock": acquired_clock_label, "epochAnchorMs": epoch_anchor_ms, "note": note},
     }
 
 
@@ -58,7 +68,8 @@ def bye_record(*, processed: int, skipped_total: int, frame_errors: int, truncat
 
 def frame_record(*, seq: int, acquired_ms: float, emitted_ms: float, skipped_since_last: int,
                   objects: list, objects_total: int, timing_ms: dict, max_objects: int,
-                  max_line_bytes: int = DEFAULT_MAX_LINE_BYTES) -> tuple[dict, bool]:
+                  max_line_bytes: int = DEFAULT_MAX_LINE_BYTES,
+                  acquired_clock_label: str = "unix-epoch-ms") -> tuple[dict, bool]:
     """Builds one frame record. `objects` is expected pre-sorted (highest score first) and is
     capped here to `max_objects`; the record is shrunk further, one lowest-scored object at a
     time, only if it would still exceed `max_line_bytes` (defensive — not expected in practice at
@@ -67,31 +78,33 @@ def frame_record(*, seq: int, acquired_ms: float, emitted_ms: float, skipped_sin
     objects, nothing hidden" from "8 objects, N more were cut"."""
     ordered = list(objects)[:max_objects]
     truncated = objects_total > len(ordered)
-    record = _assemble(seq, acquired_ms, emitted_ms, skipped_since_last, ordered, objects_total, timing_ms, truncated)
+    record = _assemble(seq, acquired_ms, emitted_ms, skipped_since_last, ordered, objects_total, timing_ms, truncated, acquired_clock_label)
     while _size(record) > max_line_bytes and ordered:
         ordered = ordered[:-1]
         truncated = True
-        record = _assemble(seq, acquired_ms, emitted_ms, skipped_since_last, ordered, objects_total, timing_ms, truncated)
+        record = _assemble(seq, acquired_ms, emitted_ms, skipped_since_last, ordered, objects_total, timing_ms, truncated, acquired_clock_label)
     return record, truncated
 
 
-def failed_frame_record(*, seq: int, acquired_ms: float, emitted_ms: float, skipped_since_last: int, reason: str) -> dict:
+def failed_frame_record(*, seq: int, acquired_ms: float, emitted_ms: float, skipped_since_last: int, reason: str,
+                         acquired_clock_label: str = "unix-epoch-ms") -> dict:
     """One frame that failed to process (e.g. a calibration/image mismatch): represented on the
     wire as an explicit, dated `valid:false` record with a `reason` — never silently dropped.
     Without this, a consumer only ever learns of the failure indirectly, much later, from
     ObservationStore's own receipt-staleness fallback (`stale_receipt`), with no reason and no
     acquisition time to reason about."""
     return {
-        "schema": SCHEMA, "seq": seq, "acquired": {"clock": "unix-epoch-ms", "ms": acquired_ms},
+        "schema": SCHEMA, "seq": seq, "acquired": {"clock": acquired_clock_label, "ms": acquired_ms},
         "emittedMs": emitted_ms, "skippedSinceLast": skipped_since_last,
         "objects": [], "objectsTotal": 0, "objectsTruncated": False, "timingMs": {},
         "valid": False, "reason": reason[:200],
     }
 
 
-def _assemble(seq, acquired_ms, emitted_ms, skipped_since_last, objects, objects_total, timing_ms, truncated) -> dict:
+def _assemble(seq, acquired_ms, emitted_ms, skipped_since_last, objects, objects_total, timing_ms, truncated,
+              acquired_clock_label: str = "unix-epoch-ms") -> dict:
     return {
-        "schema": SCHEMA, "seq": seq, "acquired": {"clock": "unix-epoch-ms", "ms": acquired_ms},
+        "schema": SCHEMA, "seq": seq, "acquired": {"clock": acquired_clock_label, "ms": acquired_ms},
         "emittedMs": emitted_ms, "skippedSinceLast": skipped_since_last,
         "objects": objects, "objectsTotal": objects_total, "objectsTruncated": truncated,
         "timingMs": timing_ms, "valid": True,

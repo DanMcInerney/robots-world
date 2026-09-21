@@ -41,7 +41,7 @@ from learned_stereo import read_manifest  # noqa: E402 - manifest validation/par
 
 from .clock import EpochClock
 from .emit import NdjsonWriter
-from .frames import ReplayFrameProvider
+from .frames import OnDemandFrameProvider, ReplayFrameProvider
 from .pipeline import FrameProcessingError, SensorPipeline
 from .records import bye_record, failed_frame_record, frame_record, hello_record
 from .stereo_backend import FfsBackend, SgbmBackend
@@ -148,11 +148,12 @@ def build_components(args: argparse.Namespace):
     return detector, stereo_backend
 
 
-def run_sensor(*, samples: list, rate_hz: float, detector, stereo_backend, score_threshold: float,
-                max_objects: int, max_line_bytes: int, manifest_path, model_meta: dict,
+def run_sensor(*, samples: Optional[list] = None, rate_hz: Optional[float] = None, detector, stereo_backend, score_threshold: float,
+                max_objects: int, max_line_bytes: int, manifest_path=None, model_meta: dict,
                 out=None, shutdown_event: Optional[threading.Event] = None,
                 poll_timeout_s: float = 2.0, watch_stdin: bool = True,
-                provider=None, clock: Optional[EpochClock] = None) -> dict:
+                provider=None, clock: Optional[EpochClock] = None,
+                acquired_clock_label: str = "unix-epoch-ms") -> dict:
     """The whole streaming loop, independent of how `detector`/`stereo_backend` were constructed
     (real or fake) — this is what tests drive directly, and what `main()` drives for a real run.
     Emits `hello` before the first frame and `bye` on every exit path (shutdown, exhaustion, or an
@@ -177,7 +178,17 @@ def run_sensor(*, samples: list, rate_hz: float, detector, stereo_backend, score
     Git-Bash/MSYS on Windows delivers instant EOF to a native python.exe reading even an open named
     pipe) ending the run before it does any work. Production use through nervelet's
     `processSource` leaves `watch_stdin` at its default (True); see
-    `docs/jev-live-sensor-results.md`."""
+    `docs/jev-live-sensor-results.md`.
+
+    `samples`/`rate_hz`/`manifest_path` are None in on-demand mode (`provider` is then always given
+    explicitly, a `frames.OnDemandFrameProvider`, so the default `ReplayFrameProvider(samples,
+    rate_hz, ...)` branch below is never reached with `samples=None`). The `hello` record's
+    `calibration`/`frameCount`/`rateHz` fields are then reported as unknown ahead of time, never a
+    guessed value. `acquired_clock_label` is threaded into every frame record's `acquired.clock`
+    field (see records.py): replay mode's default, `"unix-epoch-ms"`, is unchanged; on-demand
+    mode's caller (`main()`) passes `"engine-simulated-ms"` instead, so the wire itself declares
+    that `acquired.ms` is the caller's own simulated clock, not this process's wall clock (an
+    independent design review's point 6: do not mix wall and simulated clocks in one field)."""
     writer = NdjsonWriter(out)
     pipeline = SensorPipeline(detector, stereo_backend, score_threshold, max_objects)
     clock = clock if clock is not None else EpochClock()
@@ -190,14 +201,19 @@ def run_sensor(*, samples: list, rate_hz: float, detector, stereo_backend, score
         if watch_stdin:
             watcher.watch_stdin()
 
-    first = samples[0]
-    calibration_summary = json.loads(Path(first["calibrationPath"]).read_text(encoding="utf-8-sig"))
+    if samples:
+        first = samples[0]
+        calibration_summary = json.loads(Path(first["calibrationPath"]).read_text(encoding="utf-8-sig"))
+    else:
+        calibration_summary = None
     provider.start()
     writer.write(hello_record(
-        source="replay", manifest_path=str(manifest_path), frame_count=len(samples), rate_hz=rate_hz,
+        source="replay" if samples is not None else "on-demand",
+        manifest_path=str(manifest_path) if manifest_path is not None else "",
+        frame_count=len(samples) if samples is not None else 0, rate_hz=rate_hz if rate_hz is not None else 0.0,
         calibration=calibration_summary, model=model_meta, stereo={"backend": stereo_backend.name},
         score_threshold=score_threshold, max_objects=max_objects, max_line_bytes=max_line_bytes,
-        epoch_anchor_ms=clock.epoch_anchor_ms,
+        epoch_anchor_ms=clock.epoch_anchor_ms, acquired_clock_label=acquired_clock_label,
     ))
 
     last_seq = 0
@@ -222,13 +238,14 @@ def run_sensor(*, samples: list, rate_hz: float, detector, stereo_backend, score
                 LOG.warning("Frame %s failed: %s", result.frame.id, error)
                 writer.write(failed_frame_record(
                     seq=result.frame.seq, acquired_ms=result.frame.acquired_ms, emitted_ms=clock.now_ms(),
-                    skipped_since_last=result.skipped, reason=str(error),
+                    skipped_since_last=result.skipped, reason=str(error), acquired_clock_label=acquired_clock_label,
                 ))
                 continue
             record, truncated = frame_record(
                 seq=result.frame.seq, acquired_ms=result.frame.acquired_ms, emitted_ms=clock.now_ms(),
                 skipped_since_last=result.skipped, objects=outcome.objects, objects_total=outcome.objects_total,
                 timing_ms=outcome.timing_ms, max_objects=max_objects, max_line_bytes=max_line_bytes,
+                acquired_clock_label=acquired_clock_label,
             )
             if truncated:
                 truncated_frames += 1
@@ -248,9 +265,14 @@ def run_sensor(*, samples: list, rate_hz: float, detector, stereo_backend, score
 
 def build_arg_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--manifest", type=Path, required=True, help="perception-inputs.json-style manifest ({samples:[{id,leftPath,rightPath,calibrationPath}]})")
-    parser.add_argument("--sample-ids-file", type=Path, default=None, help="optional newline-separated, predeclared frame id list (order preserved)")
-    parser.add_argument("--rate-hz", type=float, required=True)
+    parser.add_argument("--manifest", type=Path, default=None, help="perception-inputs.json-style manifest ({samples:[{id,leftPath,rightPath,calibrationPath}]}); required unless --on-demand")
+    parser.add_argument("--sample-ids-file", type=Path, default=None, help="optional newline-separated, predeclared frame id list (order preserved); replay mode only")
+    parser.add_argument("--rate-hz", type=float, default=None, help="required unless --on-demand")
+    parser.add_argument("--on-demand", action="store_true",
+                         help="render-on-demand mode for a closed-loop engine driving its own simulated clock: read one frame "
+                              "reference (id/leftPath/rightPath/calibrationPath/acquiredMs) per stdin line, emit exactly one "
+                              "processed record per line, detector/stereo backend stay warm. Mutually exclusive with "
+                              "--manifest/--sample-ids-file/--rate-hz; see frames.OnDemandFrameProvider.")
     parser.add_argument("--stereo", choices=["sgbm", "ffs"], default="sgbm")
     parser.add_argument("--checkpoint", type=Path, required=True)
     parser.add_argument("--device", default="0")
@@ -286,11 +308,22 @@ def main(argv: Optional[list] = None) -> int:
     if args.stereo == "ffs" and args.ffs_runtime_root is None:
         print("--ffs-runtime-root is required with --stereo ffs", file=sys.stderr)
         return 2
-    try:
-        samples = load_samples(args.manifest, args.sample_ids_file)
-    except Exception as error:  # noqa: BLE001
-        LOG.error("Could not load manifest/sample list: %s", error)
-        return 2
+    if args.on_demand:
+        if args.manifest is not None or args.sample_ids_file is not None or args.rate_hz is not None:
+            LOG.error("--on-demand does not take --manifest/--sample-ids-file/--rate-hz")
+            return 2
+        samples = None
+        provider = OnDemandFrameProvider()
+    else:
+        if args.manifest is None or args.rate_hz is None:
+            LOG.error("--manifest and --rate-hz are required unless --on-demand is set")
+            return 2
+        try:
+            samples = load_samples(args.manifest, args.sample_ids_file)
+        except Exception as error:  # noqa: BLE001
+            LOG.error("Could not load manifest/sample list: %s", error)
+            return 2
+        provider = None
     try:
         detector, stereo_backend = build_components(args)
     except Exception as error:  # noqa: BLE001
@@ -303,10 +336,16 @@ def main(argv: Optional[list] = None) -> int:
         LOG.error("Detector warmup failed: %s", error)
         return 2
     try:
+        # On-demand mode uses stdin for DATA (one frame-request JSON line per acquisition, read
+        # directly by OnDemandFrameProvider); the stdin-close shutdown watcher must never also read
+        # from the same stream (it would race OnDemandFrameProvider for lines). EOF on stdin still
+        # ends the run cleanly in on-demand mode, through the provider's own `exhausted` path
+        # instead of the watcher's — SIGINT/SIGTERM handlers remain installed either way.
         result = run_sensor(samples=samples, rate_hz=args.rate_hz, detector=detector, stereo_backend=stereo_backend,
                              score_threshold=args.score_threshold, max_objects=args.max_objects,
                              max_line_bytes=args.max_line_bytes, manifest_path=args.manifest, model_meta=model_meta,
-                             out=real_stdout, watch_stdin=not args.no_stdin_watch)
+                             out=real_stdout, watch_stdin=(not args.no_stdin_watch) and not args.on_demand, provider=provider,
+                             acquired_clock_label="engine-simulated-ms" if args.on_demand else "unix-epoch-ms")
     except Exception as error:  # noqa: BLE001
         LOG.error("Sensor loop failed: %s", error)
         return 1

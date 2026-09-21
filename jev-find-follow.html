@@ -1,0 +1,344 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>Find &amp; follow · closed-loop replay</title>
+<style>
+:root{font:15px/1.55 system-ui,sans-serif;color:#e9f1f8;background:#080f18;--panel:#111d2a;--line:#2b3c4e;--muted:#9fb0c3;--mint:#77e4c4;--blue:#92baff;--amber:#ffd08a;--red:#ff9fa9}
+*{box-sizing:border-box}body{margin:0}main{max-width:1500px;margin:auto;padding:26px 30px 56px}button,select{font:inherit;color:inherit;background:#1b2a3c;border:1px solid var(--line);border-radius:7px;padding:8px 11px;cursor:pointer}
+button:hover{border-color:var(--mint)}button:disabled{opacity:.4;cursor:default}a{color:var(--mint)}
+.topline{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.eyebrow{font:700 11px/1.6 ui-monospace,monospace;letter-spacing:.15em;color:var(--mint);text-transform:uppercase}
+h1{font-size:clamp(26px,3.4vw,38px);margin:14px 0 10px;letter-spacing:-.03em}
+.badge{font:12px/1.5 ui-monospace,monospace;border:1px solid var(--line);padding:3px 9px;border-radius:99px;display:inline-block;color:var(--muted)}
+.badge.synthetic{color:var(--amber);border-color:#695739}.badge.pass{color:var(--mint);border-color:#3d7064}.badge.fail{color:var(--red);border-color:#7a3f47}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px}
+.pad{padding:16px 18px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:16px 0}
+.stat .caption{font-size:11px;color:var(--muted)}.stat .metric{font-size:22px;font-variant-numeric:tabular-nums}
+.toolbar{display:flex;gap:10px;align-items:center;margin-top:14px;flex-wrap:wrap}
+.scrubber{display:grid;grid-template-columns:1fr auto;gap:14px;align-items:center;margin-top:12px}
+input[type=range]{width:100%;accent-color:var(--mint)}
+.time{font:12px ui-monospace,monospace;color:var(--muted);min-width:220px;text-align:right}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:16px}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-top:16px}
+@media(max-width:900px){.grid2,.grid3{grid-template-columns:1fr}}
+.well{background:#04090e;aspect-ratio:16/9;position:relative;overflow:hidden;border-radius:6px}
+.well img{display:block;width:100%;height:100%;object-fit:contain}
+.well canvas{position:absolute;inset:0;width:100%;height:100%}
+.empty{color:var(--muted);text-align:center;padding:20px;font-size:13px}
+h3{font-size:14px;margin:0 0 8px;color:var(--mint)}
+pre{white-space:pre-wrap;overflow-wrap:anywhere;font:11.5px/1.6 ui-monospace,monospace;background:#0b1420;border:1px solid var(--line);border-radius:7px;padding:11px;max-height:340px;overflow:auto;margin:0}
+details{margin-top:10px}summary{cursor:pointer;color:var(--muted);font-size:12.5px}
+.answers{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.opt{font:11px ui-monospace,monospace;border:1px solid var(--line);border-radius:6px;padding:5px 8px}
+.opt.chosen{border-color:var(--mint);color:var(--mint)}
+.clocklane{display:grid;grid-template-columns:90px 1fr 70px;gap:6px;align-items:center;font-size:12px;margin:4px 0}
+.clockbar{height:8px;background:#0b1420;border-radius:4px;position:relative}
+.clockbar i{position:absolute;top:-2px;width:2px;height:12px;background:var(--amber)}
+canvas.map{width:100%;height:260px;background:#04090e;border-radius:6px}
+.legend{font-size:11px;color:var(--muted);display:flex;gap:14px;margin-top:6px;flex-wrap:wrap}
+.swatch{display:inline-block;width:10px;height:10px;border-radius:2px;vertical-align:middle;margin-right:5px}
+footer{border-top:1px solid var(--line);margin-top:30px;padding-top:16px;font-size:12px;color:var(--muted);display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px}
+</style>
+</head>
+<body>
+<main>
+  <div class="topline">
+    <div><div class="eyebrow">Jev find-and-follow · closed-loop replay</div>
+      <h1 id="title">Loading report…</h1>
+    </div>
+    <div id="badges"></div>
+  </div>
+  <p class="badge" id="loadStatus">Awaiting report.json (pass ?report=/path/to/report.json)</p>
+  <div class="panel pad">
+    <div class="stats" id="stats"></div>
+    <div class="toolbar">
+      <button id="prev">‹ Decision</button>
+      <button id="play">Play</button>
+      <button id="next">Decision ›</button>
+      <span class="badge" id="modeBadge"></span>
+    </div>
+    <div class="scrubber">
+      <input id="scrubber" type="range" min="0" max="0" value="0" step="1">
+      <output id="position" class="time">No decision selected</output>
+    </div>
+  </div>
+
+  <div class="grid2">
+    <div class="panel pad">
+      <h3>Left camera · sensor-visible detections (box overlay)</h3>
+      <div class="well"><img id="leftImage" alt="left camera" hidden><canvas id="boxOverlay"></canvas><div id="leftEmpty" class="empty">No frame recorded</div></div>
+      <div class="legend"><span><i class="swatch" style="background:#77e4c4"></i>bound candidate</span><span><i class="swatch" style="background:#92baff"></i>other candidate</span></div>
+    </div>
+    <div class="panel pad">
+      <h3>Evaluator-only top-down map <span class="badge">NOT shown to the controller</span></h3>
+      <canvas id="mapCanvas" class="map"></canvas>
+      <div class="legend"><span><i class="swatch" style="background:#77e4c4"></i>drone + FOV wedge</span><span><i class="swatch" style="background:#ffd08a"></i>target car</span><span><i class="swatch" style="background:#526176"></i>trail</span></div>
+    </div>
+  </div>
+
+  <div class="grid2">
+    <div class="panel pad">
+      <h3>Exact text state &amp; questions delivered to the controller</h3>
+      <pre id="requestJson"></pre>
+    </div>
+    <div class="panel pad">
+      <h3>Answer &amp; maneuver executed</h3>
+      <div class="answers" id="answers"></div>
+      <p class="badge" id="maneuverBadge"></p>
+      <pre id="responseJson"></pre>
+    </div>
+  </div>
+
+  <div class="grid3">
+    <div class="panel pad">
+      <h3>Five clocks (this decision)</h3>
+      <div id="clocks"></div>
+    </div>
+    <div class="panel pad">
+      <h3>Sector memory ring (search mode)</h3>
+      <canvas id="ringCanvas" width="260" height="260" style="width:100%;max-width:260px;display:block;margin:auto"></canvas>
+    </div>
+    <div class="panel pad">
+      <h3>Episode score <span class="badge" id="passBadge"></span></h3>
+      <pre id="scoreJson"></pre>
+    </div>
+  </div>
+
+  <footer>
+    <span>Synthetic/reference runs are labelled above; this page never displays evaluator truth as if it were sensed evidence.</span>
+    <a id="rawLink" href="#">Raw report.json ↗</a>
+  </footer>
+</main>
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+let report = null, index = 0, playing = false, timer = null, reportDirUrl = null;
+
+function fmtMs(ms){ return ms==null ? '—' : `${(ms/1000).toFixed(2)}s`; }
+
+async function load() {
+  const url = new URL(location.href);
+  const reportPath = url.searchParams.get('report') || './report.json';
+  // engine-review-e2 finding 7 (coordinator addition, "viewer frame-image bug"): frame paths are
+  // now stored in the report RELATIVE TO THE REPORT'S OWN DIRECTORY (episode.ts writes both
+  // report.json and frames/ under the same outDir, and no longer embeds an absolute Windows path
+  // in the report at all — finding 7's "no absolute user paths in reports"). Resolve them against
+  // the REPORT URL's own directory, not by slicing an absolute path on a marker string (the old
+  // approach silently produced a wrong, unservable URL whenever the report lived outside a path
+  // segment the marker search happened to find, e.g. `/turn-to-find-jev/frames/...` under
+  // `.runtime/...` — the server then 200'd with the SPA fallback instead of 404, so `onerror` never
+  // fired and a broken image showed with no visible cause).
+  const reportUrl = new URL(reportPath, location.href);
+  reportDirUrl = new URL('.', reportUrl);
+  $('rawLink').href = reportPath;
+  $('loadStatus').textContent = `Loading ${reportPath}…`;
+  try {
+    const res = await fetch(reportPath);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    report = await res.json();
+  } catch (e) {
+    $('loadStatus').textContent = `Failed to load ${reportPath}: ${e}`;
+    return;
+  }
+  $('loadStatus').textContent = `Loaded ${reportPath}`;
+  render();
+}
+
+function render() {
+  const m = report.meta;
+  $('title').textContent = `${m.scenarioId} · ${m.controllerId}`;
+  $('badges').innerHTML = `<span class="badge ${m.synthetic ? 'synthetic' : ''}">${m.synthetic ? 'SYNTHETIC / REFERENCE — no paid inference' : 'REAL JEV'}</span>`;
+  const s = report.score;
+  $('stats').innerHTML = [
+    ['Decisions', report.decisions.length],
+    ['Bound fraction', (s.boundFraction*100).toFixed(1) + '%'],
+    ['Framed fraction', (s.framedFraction*100).toFixed(1) + '%'],
+    ['First detection', fmtMs(s.timeToFirstControllerVisibleDetectionMs)],
+    ['Follow lock', fmtMs(s.timeToFollowLockMs)],
+    ['Longest loss', fmtMs(s.longestLossMs)],
+    ['Reacquisitions', s.reacquisitions.count],
+    ['Contacts', s.contacts],
+    ['Wall/sim second', (report.wallTimeBudget.wallMsPerSimulatedSecond/1000).toFixed(2) + 's'],
+  ].map(([k,v]) => `<div class="stat panel pad"><div class="caption">${k}</div><div class="metric">${v}</div></div>`).join('');
+  $('scoreJson').textContent = JSON.stringify(s, null, 2);
+  if (s.pass) {
+    $('passBadge').textContent = s.pass.decided ? 'PASS' : 'FAIL';
+    $('passBadge').className = 'badge ' + (s.pass.decided ? 'pass' : 'fail');
+  } else { $('passBadge').textContent = 'no criteria supplied'; }
+  $('scrubber').max = Math.max(0, report.decisions.length - 1);
+  renderDecision();
+}
+
+// engine-review-e1 finding 9: the overlay previously used `0.5 + tan(bearing)*0.5`, which ignores
+// the camera's own HFOV entirely (wrong for any HFOV other than the one value that makes
+// tan(hfov/2)==1, i.e. exactly 90deg) and drew a bearing-only marker line rather than the sensor's
+// actual detection box. `bearingToNormX` is the real pinhole-camera projection (tan(bearing) over
+// tan(half-HFOV), the same relationship the sensor's own bearing/box geometry is built on); real
+// boxes are drawn directly from `report.sensorObjectsByAcquiredSimMs` (finding 7's per-acquisition
+// saved sensor objects) when available, which needs no projection at all (boxNorm is already the
+// detector's own normalized image-space box).
+function bearingToNormX(bearingRightRad, hfovDeg) {
+  const halfHfovRad = (hfovDeg || 70) * Math.PI / 360;
+  return 0.5 + Math.tan(bearingRightRad) / (2 * Math.tan(halfHfovRad));
+}
+
+function drawBoxes(decision) {
+  const canvas = $('boxOverlay'), img = $('leftImage');
+  const rect = img.getBoundingClientRect();
+  canvas.width = rect.width || 640; canvas.height = rect.height || 360;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  const hfovDeg = report.meta?.config?.world?.hfovDeg;
+  const sensorObjects = (report.sensorObjectsByAcquiredSimMs || {})[String(decision.acquiredSimMs)];
+  const boundBearing = decision.boundBearingRightRad;
+  if (Array.isArray(sensorObjects) && sensorObjects.length) {
+    sensorObjects.forEach(o => {
+      const [x0,y0,x1,y1] = o.boxNorm;
+      const isBound = boundBearing !== null && Math.abs(o.bearingRightRad - boundBearing) < 1e-6;
+      ctx.strokeStyle = isBound ? '#77e4c4' : '#92baff';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(x0*canvas.width, y0*canvas.height, (x1-x0)*canvas.width, (y1-y0)*canvas.height);
+      ctx.fillStyle = ctx.strokeStyle; ctx.font = '11px monospace';
+      ctx.fillText(`${o.class}${o.dominantColor ? ' '+o.dominantColor : ''} ${(o.score*100).toFixed(0)}%`, x0*canvas.width+2, Math.max(11, y0*canvas.height-2));
+    });
+    return;
+  }
+  // No saved sensor objects for this acquisition (older report, or a decision that consumed a
+  // last-seen baseline rather than a fresh acquisition): fall back to a bearing marker using the
+  // real projection, clearly distinguished from a drawn detection box.
+  const boundIndex = decision.bind.boundIndex;
+  (decision.bind.candidates || []).forEach((c, i) => {
+    const x = canvas.width * bearingToNormX(c.bearingRightRad, hfovDeg);
+    ctx.strokeStyle = i === boundIndex ? '#77e4c4' : '#92baff';
+    ctx.lineWidth = 2; ctx.setLineDash([4,3]);
+    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
+    ctx.setLineDash([]);
+  });
+}
+
+function drawMap(decision) {
+  const canvas = $('mapCanvas');
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = (rect.width || 600) * dpr; canvas.height = 260 * dpr;
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  const w = rect.width || 600, h = 260;
+  ctx.clearRect(0,0,w,h);
+  const frames = report.evaluatorOnly.frames;
+  if (!frames.length) return;
+  const xs = frames.map(f => f.cameraPosition.x).concat(frames.map(f => f.target.position.x));
+  const ys = frames.map(f => f.cameraPosition.y).concat(frames.map(f => f.target.position.y));
+  const minX = Math.min(...xs)-3, maxX = Math.max(...xs)+3, minY = Math.min(...ys)-3, maxY = Math.max(...ys)+3;
+  const sx = x => (x-minX)/(maxX-minX)*w, sy = y => h - (y-minY)/(maxY-minY)*h;
+  ctx.strokeStyle = '#526176'; ctx.lineWidth = 1.5; ctx.beginPath();
+  frames.forEach((f,i) => { const x=sx(f.cameraPosition.x), y=sy(f.cameraPosition.y); i===0?ctx.moveTo(x,y):ctx.lineTo(x,y); });
+  ctx.stroke();
+  // A7 (engine-review-e3, "smaller items": "Viewer still indexes evaluator frames by decision index
+  // -> pose shown 3x too early"): there are roughly 3x more acquisitions (evaluator frames) than
+  // decisions at the default 5Hz/505ms cadence, so `frames[decisionIndex]` showed a pose from far
+  // earlier in the episode than the decision actually being viewed. Find the frame whose OWN
+  // acquisition time matches this decision's freshest acquisition (`decision.acquiredSimMs` — the
+  // exact field every decision already records for the acquisition its own request was built from),
+  // falling back to the nearest-by-time frame only if no exact match exists (e.g. an older report).
+  let f = frames.find(fr => fr.acquiredSimMs === decision.acquiredSimMs);
+  if (!f) f = frames.reduce((best, fr) => Math.abs(fr.acquiredSimMs - decision.acquiredSimMs) < Math.abs(best.acquiredSimMs - decision.acquiredSimMs) ? fr : best, frames[0]);
+  if (f) {
+    ctx.fillStyle = '#ffd08a';
+    ctx.beginPath(); ctx.arc(sx(f.target.position.x), sy(f.target.position.y), 5, 0, 7); ctx.fill();
+    const cx = sx(f.cameraPosition.x), cy = sy(f.cameraPosition.y);
+    const half = (f.cameraHfovDeg/2) * Math.PI/180, heading = -f.cameraHeadingDeg*Math.PI/180;
+    ctx.fillStyle = 'rgba(119,228,196,0.25)';
+    ctx.beginPath(); ctx.moveTo(cx,cy);
+    ctx.arc(cx,cy,40,heading-half,heading+half); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#77e4c4';
+    ctx.beginPath(); ctx.arc(cx,cy,5,0,7); ctx.fill();
+  }
+}
+
+function drawRing(decision) {
+  const canvas = $('ringCanvas'), ctx = canvas.getContext('2d');
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  const sectors = decision.request?.state?.sector_memory;
+  if (!Array.isArray(sectors)) { ctx.fillStyle='#9fb0c3'; ctx.font='12px sans-serif'; ctx.fillText('No sector memory on this decision (track mode)', 10, 130); return; }
+  const cx=130, cy=130, r=100;
+  const n = sectors.length;
+  sectors.forEach((s,i) => {
+    const a0 = (i/n)*2*Math.PI - Math.PI/2 - Math.PI/n, a1 = a0 + 2*Math.PI/n;
+    const age = s.inspected === 'never' ? null : s.inspected.age_ms;
+    ctx.fillStyle = age === null ? '#3a2222' : age < 5000 ? '#1e4d40' : '#2a3242';
+    ctx.beginPath(); ctx.moveTo(cx,cy); ctx.arc(cx,cy,r,a0,a1); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = '#080f18'; ctx.stroke();
+  });
+  ctx.fillStyle = '#e9f1f8'; ctx.font = '11px monospace'; ctx.textAlign='center';
+  ctx.fillText('green=recent, red=never, grey=stale', cx, cy+4);
+}
+
+function renderDecision() {
+  const decision = report.decisions[index];
+  if (!decision) return;
+  $('modeBadge').textContent = `mode: ${decision.mode}`;
+  $('position').textContent = `#${index+1}/${report.decisions.length} · acquired ${fmtMs(decision.acquiredSimMs)} sim`;
+  $('requestJson').textContent = JSON.stringify(decision.request, null, 2);
+  $('responseJson').textContent = JSON.stringify(decision.response, null, 2);
+  // engine-review-e1 finding 9: previously only the CHOSEN option was rendered; every offered
+  // option is now shown with its own probability, the choice highlighted — matching what the
+  // controller actually saw and returned (request.questions[q].criteria lists every option).
+  $('answers').innerHTML = Object.entries(decision.response.answers || {}).map(([q,a]) => {
+    const criteria = decision.request?.questions?.[q]?.criteria || {};
+    const optionIds = Object.keys(criteria).length ? Object.keys(criteria) : Object.keys(a.probabilities || {});
+    const options = optionIds.map(id => {
+      const p = a.probabilities ? a.probabilities[id] : undefined;
+      const pText = p === undefined ? '' : ` (p=${p.toFixed(2)})`;
+      return `<span class="opt${id === a.choice ? ' chosen' : ''}">${id}${pText}</span>`;
+    }).join('');
+    return `<div style="margin-bottom:6px"><div class="caption" style="font-size:11px;color:var(--muted);margin-bottom:3px">${q}</div>${options}</div>`;
+  }).join('');
+  $('maneuverBadge').textContent = `${decision.chosenManeuver} → ${decision.maneuverOutcome}${decision.maneuverVeto ? ' (VETOED: ' + decision.maneuverVeto + ')' : ''}`;
+  const frame = decision.frameRef;
+  const img = $('leftImage'), empty = $('leftEmpty');
+  if (frame && frame.left && reportDirUrl) {
+    // frameRef.left/right are now RELATIVE to the report's own directory (finding 7) — resolve
+    // directly against reportDirUrl, computed once in load(). The repo's static server (server.ts,
+    // port 8870, or the coordinator's replay server on 8872) serves the whole project tree, so this
+    // is servable whenever the report itself was loaded over http(s); a bare file:// URL is blocked
+    // by the browser regardless.
+    const leftUrl = new URL(frame.left.replace(/\\/g, '/'), reportDirUrl).href;
+    img.src = leftUrl; img.hidden = false; empty.hidden = true;
+    img.onerror = () => { img.hidden = true; empty.hidden = false; empty.textContent = `Image not servable from this origin: ${leftUrl} — open this replay from a static server (server.ts, port 8870/8872), not a plain file:// page.`; };
+  } else { img.hidden = true; empty.hidden = false; }
+  // engine-review-e1 finding 9: clock lanes previously showed only a bar position with no printed
+  // number, forcing a reader to eyeball pixel offsets. Every lane now also prints its own
+  // millisecond value (SIMULATED time, per the module's own units — see scheduler.ts) and the
+  // minSimMs anchor so relative spacing stays visible alongside the exact figures.
+  const clocks = [
+    ['acquired', decision.acquiredSimMs], ['obs. avail.', decision.observationAvailableSimMs],
+    ['dispatched', decision.dispatchedSimMs], ['returned', decision.returnedSimMs], ['applied', decision.appliedSimMs],
+  ];
+  const minT = decision.acquiredSimMs, maxT = Math.max(decision.appliedSimMs, minT + 1);
+  $('clocks').innerHTML = clocks.map(([k,v]) => `<div class="clocklane"><span>${k}</span><div class="clockbar"><i style="left:${Math.min(100,Math.max(0,(v-minT)/(maxT-minT)*100))}%"></i></div><span style="text-align:right;font:11px ui-monospace,monospace;color:var(--muted)">${Math.round(v)} ms</span></div>`).join('')
+    + `<p class="badge">skipped acquisitions: ${decision.skippedAcquisitions} · acquisitions this cycle: ${decision.acquisitionsThisCycle ?? 1}${decision.controllerLatencyTimedOut ? ' · CONTROLLER LATENCY TIMED OUT' : ''}</p>`
+    + `<p class="badge">wall: acquire ${decision.acquireWallMs}ms · perception ${decision.perceptionWallMs}ms · controller ${decision.controllerWallMs}ms · cycle ${decision.cycleWallMs}ms</p>`;
+  drawBoxes(decision); drawMap(decision); drawRing(decision);
+}
+
+$('scrubber').addEventListener('input', e => { index = Number(e.target.value); renderDecision(); });
+$('prev').addEventListener('click', () => { index = Math.max(0, index-1); $('scrubber').value = index; renderDecision(); });
+$('next').addEventListener('click', () => { index = Math.min(report.decisions.length-1, index+1); $('scrubber').value = index; renderDecision(); });
+$('play').addEventListener('click', () => {
+  playing = !playing; $('play').textContent = playing ? 'Pause' : 'Play';
+  if (playing) timer = setInterval(() => {
+    if (index >= report.decisions.length-1) { index = 0; } else index++;
+    $('scrubber').value = index; renderDecision();
+  }, 400);
+  else clearInterval(timer);
+});
+window.addEventListener('resize', () => report && renderDecision());
+load();
+</script>
+</body>
+</html>

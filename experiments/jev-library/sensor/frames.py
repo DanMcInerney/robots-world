@@ -17,10 +17,12 @@ mechanics here are already provider-agnostic and would not need to change.
 """
 from __future__ import annotations
 
+import json
+import sys
 import threading
 import time
 from dataclasses import dataclass
-from typing import Optional, Protocol, Sequence
+from typing import IO, Optional, Protocol, Sequence
 
 from .clock import EpochClock
 
@@ -154,3 +156,54 @@ class ReplayFrameProvider:
         self._slot.wake()
         if self._thread is not None:
             self._thread.join(timeout=5.0)
+
+
+class OnDemandFrameProvider:
+    """Render-on-demand mode for a closed-loop engine driving its own simulated clock (e.g.
+    experiments/jev-find-follow/'s episode engine): reads exactly ONE JSON line per `take_latest()`
+    call from a line-delimited stream (default stdin) — `{"id":...,"leftPath":...,"rightPath":...,
+    "calibrationPath":...,"acquiredMs":...}` — and returns exactly one frame reference for it, so
+    the caller's one-request-in/one-record-out cadence (main.py's `run_sensor` loop already has
+    this shape) maps directly onto one JSON line in, one processed record out, with the detector
+    and stereo backend staying warm across requests in one persistent process.
+
+    `acquired_ms` is taken VERBATIM from the caller's own `acquiredMs` field, never this process's
+    own wall clock (`EpochClock`): the caller owns simulated acquisition time (an independent
+    design review's point 6 — "do not mix wall and simulated clocks in one field"). `main.py`
+    threads this through to `frame_record`/`failed_frame_record` with `acquired_clock_label`
+    explicitly set away from `"unix-epoch-ms"`, so the wire record itself declares that
+    `acquired.ms` is not a wall-clock reading (see records.py).
+
+    A blank line is ignored (not a frame, not EOF). EOF (`readline()` returning `''`) marks the
+    provider exhausted, matching `ReplayFrameProvider`'s own end-of-replay contract, so `main.py`'s
+    existing shutdown/`bye` handling needs no on-demand-specific branch. `never_before` (`start`/
+    `wake`/`stop`) are no-ops: there is no background thread and nothing to pace or interrupt."""
+    def __init__(self, stream: Optional[IO[str]] = None) -> None:
+        self._stream: IO[str] = stream if stream is not None else sys.stdin
+        self._seq = 0
+
+    def start(self) -> None:
+        pass
+
+    def take_latest(self, after_seq: int, timeout_s: Optional[float] = None) -> TakeResult:
+        while True:
+            line = self._stream.readline()
+            if not line:
+                return TakeResult(frame=None, skipped=0, exhausted=True)
+            stripped = line.strip()
+            if not stripped:
+                continue
+            request = json.loads(stripped)
+            self._seq += 1
+            frame = FrameRef(
+                seq=self._seq, id=str(request["id"]), left_path=str(request["leftPath"]),
+                right_path=str(request["rightPath"]), calibration_path=str(request["calibrationPath"]),
+                acquired_ms=float(request["acquiredMs"]),
+            )
+            return TakeResult(frame=frame, skipped=0, exhausted=False)
+
+    def wake(self) -> None:
+        pass
+
+    def stop(self) -> None:
+        pass

@@ -30,7 +30,7 @@ import { createInterface } from 'node:readline';
 import { buildStereoObjectsSourceOptions } from './stereo-objects.ts';
 import type { Json } from '../src/contracts.ts';
 
-interface Args {
+export interface Args {
   pythonExecutable: string;
   sensorCwd: string;
   manifestPath: string;
@@ -46,7 +46,7 @@ interface Args {
   requireQuiet: boolean;
 }
 
-function parseArgs(argv: string[]): Args {
+export function parseArgs(argv: string[]): Args {
   const map = new Map<string, string>();
   const flags = new Set<string>();
   for (let i = 0; i < argv.length; i++) {
@@ -59,12 +59,22 @@ function parseArgs(argv: string[]): Args {
     if (!value) throw new Error(`Missing required --${key}`);
     return value;
   };
+  // Every path argument is resolved to an absolute path here, once, before it is ever handed to
+  // `spawn`/`buildStereoObjectsSourceOptions`. A relative `command` (pythonExecutable) combined
+  // with a `cwd` option (sensorCwd) is resolved by Node/the OS against THAT cwd, not this
+  // process's own — the same is true for the Python-side `--manifest`/`--checkpoint`/
+  // `--detector-runtime-root`/`--sample-ids-file` arguments, which the sensor reads relative to
+  // its own spawned cwd. A relative path here previously made the sensor fail (wrong file, wrong
+  // directory) purely because of where it happened to be invoked from — fixed by resolving every
+  // one of these against THIS process's cwd before spawn, independent of `sensorCwd`.
+  const resolvedPath = (key: string): string => resolve(required(key));
+  const optionalResolvedPath = (key: string): string | undefined => { const v = map.get(key); return v ? resolve(v) : undefined; };
   return {
-    pythonExecutable: required('python'), sensorCwd: required('sensor-cwd'), manifestPath: required('manifest'),
-    checkpointPath: required('checkpoint'), detectorRuntimeRoot: required('detector-runtime-root'),
-    sampleIdsFile: required('sample-ids-file'), rateHz: Number(required('rate-hz')),
-    stereo: (map.get('stereo') as 'sgbm' | 'ffs') ?? 'sgbm', ffsRuntimeRoot: map.get('ffs-runtime-root'),
-    outDir: required('out-dir'), warmupFrames: Number(map.get('warmup-frames') ?? '5'),
+    pythonExecutable: resolvedPath('python'), sensorCwd: resolvedPath('sensor-cwd'), manifestPath: resolvedPath('manifest'),
+    checkpointPath: resolvedPath('checkpoint'), detectorRuntimeRoot: resolvedPath('detector-runtime-root'),
+    sampleIdsFile: resolvedPath('sample-ids-file'), rateHz: Number(required('rate-hz')),
+    stereo: (map.get('stereo') as 'sgbm' | 'ffs') ?? 'sgbm', ffsRuntimeRoot: optionalResolvedPath('ffs-runtime-root'),
+    outDir: resolvedPath('out-dir'), warmupFrames: Number(map.get('warmup-frames') ?? '5'),
     timeoutMs: Number(map.get('timeout-ms') ?? '120000'), requireQuiet: flags.has('require-quiet'),
   };
 }
@@ -93,12 +103,57 @@ function gpuName(): string {
 function sleep(ms: number): Promise<void> { return new Promise(r => setTimeout(r, ms)); }
 
 // Declared before any measurement, not tuned to a particular run's numbers.
-const CONTENTION_GPU_UTIL_PERCENT = 15;
-const CONTENTION_CPU_LOAD_PERCENT = 50;
+// Power draw, not utilization%, is the primary GPU contention signal (see measureContention()):
+// this machine's idle laptop GPU reads 17-23W with a nonzero utilization% purely from ordinary
+// desktop composition, which previously read as "contended" on every run regardless of an actual
+// foreign workload — the one real contended run recorded in this repo's evidence measured ~149W
+// (docs/jev-live-sensor-results.md). 40W sits well above the idle range and well below that
+// figure.
+export const CONTENTION_GPU_POWER_W = 40;
+export const CONTENTION_CPU_LOAD_PERCENT = 50;
+// nvidia-smi's --query-compute-apps lists the Windows compositor (dwm.exe) as a "compute app"
+// merely because it uses the GPU to composite the desktop — not a foreign workload. Excluded from
+// the contention gate; still recorded verbatim in `gpu.computeApps` for evidence.
+export const KNOWN_SYSTEM_COMPOSITOR_PROCESS_NAMES = ['dwm.exe'];
+export function isKnownSystemCompositor(computeAppEntry: string): boolean {
+  return KNOWN_SYSTEM_COMPOSITOR_PROCESS_NAMES.some(name => computeAppEntry.toLowerCase().includes(name));
+}
 
-interface GpuState { utilizationPercent: number | null; powerW: number | null; memoryUsedMiB: number | null; computeApps: string[] }
+export interface GpuState { utilizationPercent: number | null; powerW: number | null; memoryUsedMiB: number | null; computeApps: string[] }
 
-function queryGpuState(): GpuState {
+// engine-review-e1 finding 8: a non-elevated `nvidia-smi --query-compute-apps` withholds the
+// process name on Windows (reports it as blank or "N/A", PID still given) — reproduced with
+// dwm.exe (PID 2576) in the review's repro. `isKnownSystemCompositor`'s substring match against
+// the process name then silently fails to recognise the compositor, so a perfectly idle GPU with
+// no foreign workload reads as "contended" purely because the caller lacks Administrator rights.
+// `resolveComputeAppEntryName` fills in the withheld name from the PID (Windows `tasklist`) BEFORE
+// the entry is ever compared against `isKnownSystemCompositor`. Pure/testable: the PID->name
+// resolver is injected, not hard-coded to a live `tasklist` call.
+const WITHHELD_NAME_MARKERS = new Set(['', 'n/a', 'not visible', '[not supported]']);
+
+export function resolveComputeAppEntryName(entry: string, resolvePidName: (pid: string) => string | null): string {
+  const [pidRaw, ...nameParts] = entry.split(',').map(s => s.trim());
+  const nameRaw = nameParts.join(',').trim();
+  if (!WITHHELD_NAME_MARKERS.has(nameRaw.toLowerCase())) return entry;
+  if (!pidRaw) return entry;
+  const resolved = resolvePidName(pidRaw);
+  return resolved ? `${pidRaw}, ${resolved}` : entry;
+}
+
+/** Resolves a Windows PID to its process name via `tasklist` (CSV, no header: `"name","pid",...`).
+ * Returns null when the PID cannot be resolved (process already exited, `tasklist` unavailable,
+ * non-Windows host) rather than throwing — a best-effort enrichment, never a hard requirement. */
+export function resolveProcessNameByPid(pid: string): string | null {
+  try {
+    const out = execFileSync('tasklist', ['/FI', `PID eq ${pid}`, '/FO', 'CSV', '/NH'], { encoding: 'utf8' }).trim();
+    if (!out || /no tasks/i.test(out)) return null;
+    const firstField = out.split('","')[0];
+    const name = firstField?.replace(/^"/, '').trim();
+    return name || null;
+  } catch { return null; }
+}
+
+export function queryGpuState(): GpuState {
   let utilizationPercent: number | null = null, powerW: number | null = null, memoryUsedMiB: number | null = null;
   try {
     const out = execFileSync('nvidia-smi', ['--query-gpu=utilization.gpu,power.draw,memory.used', '--format=csv,noheader,nounits'], { encoding: 'utf8' }).trim();
@@ -110,7 +165,7 @@ function queryGpuState(): GpuState {
   let computeApps: string[] = [];
   try {
     const out = execFileSync('nvidia-smi', ['--query-compute-apps=pid,process_name', '--format=csv,noheader'], { encoding: 'utf8' }).trim();
-    computeApps = out ? out.split('\n').map(s => s.trim()).filter(Boolean) : [];
+    computeApps = out ? out.split('\n').map(s => s.trim()).filter(Boolean).map(entry => resolveComputeAppEntryName(entry, resolveProcessNameByPid)) : [];
   } catch { /* ignore: no compute-apps support or no GPU */ }
   return { utilizationPercent, powerW, memoryUsedMiB, computeApps };
 }
@@ -130,7 +185,7 @@ async function measureCpuLoadPercent(sampleMs = 200): Promise<number> {
   return totalDelta > 0 ? 100 * (1 - idleDelta / totalDelta) : 0;
 }
 
-interface ContentionSnapshot {
+export interface ContentionSnapshot {
   atIso: string;
   gpu: GpuState;
   cpuLoadPercent: number;
@@ -138,17 +193,20 @@ interface ContentionSnapshot {
   reasons: string[];
 }
 
-async function measureContention(): Promise<ContentionSnapshot> {
+export async function measureContention(): Promise<ContentionSnapshot> {
   const gpu = queryGpuState();
   const cpuLoadPercent = await measureCpuLoadPercent();
   const reasons: string[] = [];
-  if (gpu.utilizationPercent !== null && gpu.utilizationPercent > CONTENTION_GPU_UTIL_PERCENT) reasons.push(`gpuUtilization ${gpu.utilizationPercent}% > ${CONTENTION_GPU_UTIL_PERCENT}%`);
-  if (gpu.computeApps.length > 0) reasons.push(`foreign GPU compute app(s) present: ${gpu.computeApps.join('; ')}`);
+  // Power draw (not utilization%, which is noisy at idle from ordinary desktop composition) is the
+  // GPU contention signal; recorded utilizationPercent stays in the snapshot for evidence either way.
+  if (gpu.powerW !== null && gpu.powerW > CONTENTION_GPU_POWER_W) reasons.push(`gpuPowerDraw ${gpu.powerW}W > ${CONTENTION_GPU_POWER_W}W`);
+  const foreignComputeApps = gpu.computeApps.filter(entry => !isKnownSystemCompositor(entry));
+  if (foreignComputeApps.length > 0) reasons.push(`foreign GPU compute app(s) present: ${foreignComputeApps.join('; ')}`);
   if (cpuLoadPercent > CONTENTION_CPU_LOAD_PERCENT) reasons.push(`cpuLoad ${cpuLoadPercent.toFixed(1)}% > ${CONTENTION_CPU_LOAD_PERCENT}%`);
   return { atIso: new Date().toISOString(), gpu, cpuLoadPercent, contended: reasons.length > 0, reasons };
 }
 
-async function runViaNervelet(args: Args, built: ReturnType<typeof buildStereoObjectsSourceOptions>, rawLog: (line: string) => void) {
+export async function runViaNervelet(args: Args, built: ReturnType<typeof buildStereoObjectsSourceOptions>, rawLog: (line: string) => void) {
   const specifier = process.env.ROBOTS_NERVELET_MODULE!;
   const nervelet = await import(specifier.startsWith('file:') ? specifier : pathToFileURL(resolve(specifier)).href);
   if (typeof nervelet.processSource !== 'function' || typeof nervelet.SourceGroup !== 'function' || typeof nervelet.ObservationStore !== 'function') {
@@ -172,9 +230,17 @@ async function runViaNervelet(args: Args, built: ReturnType<typeof buildStereoOb
   const store = new nervelet.ObservationStore();
   const group = new nervelet.SourceGroup(store, [source]);
   const controller = new AbortController();
-  await group.start(controller.signal);
+  try {
+    await group.start(controller.signal);
+  } catch (error) {
+    // A spawn failure (e.g. a bad/relative executable path resolved against the wrong cwd) rejects
+    // here, before any lifecycle event can exist. Fail immediately with what Node itself reports,
+    // instead of falling through to a 120s wait for an event that can never arrive.
+    throw new Error(`Sensor process failed to start: ${String(error)}`);
+  }
   const deadline = Date.now() + args.timeoutMs;
   let sawExit = false;
+  let exitEventData: { code: number | null; signal: string | null; stderrTail?: string } | null = null;
   // Properly paged: `snapshot(after)` only ever returns up to 64 unread events past `after`, so
   // repeatedly calling `snapshot(0)` can get permanently stuck behind the same oldest 64 once a
   // run produces more events than that (observed: a longer replay's own `object_appeared` stream
@@ -187,18 +253,29 @@ async function runViaNervelet(args: Args, built: ReturnType<typeof buildStereoOb
     if (snap.events?.length) {
       afterSeq = snap.events[snap.events.length - 1]!.seq;
       store.acknowledge(afterSeq);
-      if (snap.events.some((e: any) => e.kind === 'stereoObjects.lifecycle' && e.data?.kind === 'exit')) { sawExit = true; break; }
+      const exitEvent = snap.events.find((e: any) => e.kind === 'stereoObjects.lifecycle' && e.data?.kind === 'exit');
+      if (exitEvent) { sawExit = true; exitEventData = exitEvent.data; break; }
     }
     await sleep(20);
   }
   if (!sawExit) throw new Error(`Timed out after ${args.timeoutMs}ms waiting for the sensor process to exit`);
+  await group.stop();
+  // Early-exit detection: a clean run always produces both hello (startup succeeded) and bye
+  // (the sensor's own declared end-of-run record) before the process exits. If either is missing,
+  // the process died early (bad args/paths, crash before completing) — fail immediately with the
+  // sensor's own stderr tail (the lifecycle exit event's `data.stderrTail`) instead of returning a
+  // success-shaped result built from zero/partial observations.
+  if (!helloRecord || !byeRecord) {
+    const stderrTail = exitEventData?.stderrTail ? String(exitEventData.stderrTail) : '(no stderr captured)';
+    const codeInfo = exitEventData ? ` (exit code=${exitEventData.code ?? 'null'} signal=${exitEventData.signal ?? 'none'})` : '';
+    throw new Error(`Sensor process exited early${codeInfo} before producing ${!helloRecord ? 'a hello' : 'a bye'} record. Stderr tail:\n${stderrTail}`);
+  }
   const finalSnapshot = store.snapshot(afterSeq);
   const diagnostics = finalSnapshot.samples?.['stereoObjects.diagnostics']?.value ?? null;
-  await group.stop();
   return { observations, helloRecord, byeRecord, diagnostics, malformedAtConsumer: (diagnostics as any)?.malformed ?? 0, droppedEventsAtConsumer: (diagnostics as any)?.droppedEvents ?? 0 };
 }
 
-async function runViaPlainReader(args: Args, built: ReturnType<typeof buildStereoObjectsSourceOptions>, rawLog: (line: string) => void) {
+export async function runViaPlainReader(args: Args, built: ReturnType<typeof buildStereoObjectsSourceOptions>, rawLog: (line: string) => void) {
   const observations: RawObservation[] = [];
   let helloRecord: any = null;
   let byeRecord: any = null;
@@ -221,10 +298,19 @@ async function runViaPlainReader(args: Args, built: ReturnType<typeof buildStere
   });
   const timeout = sleep(args.timeoutMs).then(() => { throw new Error(`Timed out after ${args.timeoutMs}ms (plain reader)`); });
   await Promise.race([done, timeout]);
+  // Early-exit detection: `done` resolves on the child's own 'close' event regardless of exit
+  // code, so a process that crashed immediately (bad args/paths) previously produced a
+  // success-shaped empty result instead of a clear failure. A clean run always writes both hello
+  // and bye before exiting; missing either means it died early — fail immediately with the
+  // captured stderr tail rather than reporting zero observations as if they were a real result.
+  if (!helloRecord || !byeRecord) {
+    const codeInfo = ` (exit code=${child.exitCode ?? 'null'} signal=${child.signalCode ?? 'none'})`;
+    throw new Error(`Sensor process exited early${codeInfo} before producing ${!helloRecord ? 'a hello' : 'a bye'} record. Stderr tail:\n${stderrChunks.join('').slice(-2000) || '(no stderr captured)'}`);
+  }
   return { observations, helloRecord, byeRecord, diagnostics: null, malformedAtConsumer: malformed, droppedEventsAtConsumer: 0, stderrTail: stderrChunks.join('').slice(-2000) };
 }
 
-async function main(): Promise<void> {
+export async function main(): Promise<void> {
   const args = parseArgs(process.argv.slice(2));
   mkdirSync(args.outDir, { recursive: true });
   const rawPath = resolve(args.outDir, `raw-${args.rateHz}hz.ndjson`);
@@ -311,4 +397,11 @@ async function main(): Promise<void> {
   console.log(JSON.stringify(summary));
 }
 
-main().catch(error => { console.error(error); process.exitCode = 1; });
+// Guarded (matching the run.ts pattern used elsewhere in this repo, e.g.
+// experiments/jev-find-follow/run.ts): importing this module for its exported pieces (parseArgs,
+// measureContention, isKnownSystemCompositor, runViaPlainReader, runViaNervelet — see
+// test/measure-stereo-objects-latency.test.ts) must never itself spawn the sensor or touch the
+// GPU/filesystem as a side effect of `import`.
+if (process.argv[1] && pathToFileURL(resolve(process.argv[1])).href === import.meta.url) {
+  main().catch(error => { console.error(error); process.exitCode = 1; });
+}
