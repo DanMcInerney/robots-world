@@ -90,3 +90,13 @@ both splits — a caution against trusting a cheaper representation on a develop
 exposed a flaw in this experiment's own payload-based selection rule, not only in Jev's answers. Present
 range decisions with the resulting range/error computed for every option, not a signed scalar alone; do not
 yet trust a compact scouting-state summary for search decisions. [Full results and reproduction](docs/jev-scout-encodings-results.md).
+
+## Live stereo-object sensor, 2026-09-20
+
+The recommended perception stack now runs as one continuously fed process that emits compact, goal-agnostic
+object records (class, bearing, surface range or an explicit unknown, acquisition time) for Nervelet's
+process-backed Source; its output matches the archived batch arm on all 619 compared object pairs. **Its live
+latency is not yet known:** every timing run was taken while another application saturated the GPU and CPU, so
+the recorded figures are contended upper bounds. Re-measure on a quiet machine before quoting a rate or age.
+[Schema, commands, measurements and failures](docs/jev-live-sensor-results.md); see F76 in the
+[failure log](docs/design-failures.md).

@@ -1,0 +1,905 @@
+{
+  "source": ".runtime/experiments/jev-live-sensor-v1/measurements/raw-5hz.ndjson (real GPU run, 5 Hz, seq 21-60)",
+  "note": "acquiredOffsetMs/emittedOffsetMs are relative to the first record in this slice; the loading test adds a fresh Date.now() anchor so this fixture never goes stale.",
+  "records": [
+    {
+      "seq": 21,
+      "acquiredOffsetMs": 0,
+      "emittedOffsetMs": 313,
+      "skippedSinceLast": 0,
+      "objects": [
+        {
+          "class": "car",
+          "score": 0.5941,
+          "bearingRightRad": 0.098453,
+          "bearingUpRad": -0.005857,
+          "surfaceRangeM": 11.5722,
+          "rangeValid": true,
+          "rangeSource": "stereo:sgbm+mask_median",
+          "maskPixels": 3040,
+          "boxNorm": [
+            0.5123,
+            0.4415,
+            0.6297,
+            0.5793
+          ],
+          "dominantColor": "blue"
+        }
+      ],
+      "objectsTotal": 1
+    },
+    {
+      "seq": 22,
+      "acquiredOffsetMs": 203,
+      "emittedOffsetMs": 547,
+      "skippedSinceLast": 0,
+      "objects": [
+        {
+          "class": "car",
+          "score": 0.7232,
+          "bearingRightRad": 0.072787,
+          "bearingUpRad": -0.003617,
+          "surfaceRangeM": 11.6082,
+          "rangeValid": true,
+          "rangeSource": "stereo:sgbm+mask_median",
+          "maskPixels": 3046,
+          "boxNorm": [
+            0.4949,
+            0.4332,
+            0.6104,
+            0.5785
+          ],
+          "dominantColor": "blue"
+        }
+      ],
+      "objectsTotal": 1
+    },
+    {
+      "seq": 23,
+      "acquiredOffsetMs": 406,
+      "emittedOffsetMs": 813,
+      "skippedSinceLast": 0,
+      "objects": [
+        {
+          "class": "car",
+          "score": 0.5265,
+          "bearingRightRad": 0.046407,
+          "bearingUpRad": -0.003746,
+          "surfaceRangeM": 11.61,
+          "rangeValid": true,
+          "rangeSource": "stereo:sgbm+mask_median",
+          "maskPixels": 2907,
+          "boxNorm": [
+            0.4757,
+            0.4346,
+            0.5907,
+            0.5759
+          ],
+          "dominantColor": "blue"
+        }
+      ],
+      "objectsTotal": 1
+    },
+    {
+      "seq": 25,
+      "acquiredOffsetMs": 813,
+      "emittedOffsetMs": 1047,
+      "skippedSinceLast": 1,
+      "objects": [
+        {
+          "class": "car",
+          "score": 0.3746,
+          "bearingRightRad": -0.006546,
+          "bearingUpRad": -0.003121,
+          "surfaceRangeM": 11.9113,
+          "rangeValid": true,
+          "rangeSource": "stereo:sgbm+mask_median",
+          "maskPixels": 2744,
+          "boxNorm": [
+            0.4381,
+            0.4407,
+            0.5515,
+            0.573
+          ],
+          "dominantColor": "blue"
+        }
+      ],
+      "objectsTotal": 1
+    },
+    {
+      "seq": 26,
+      "acquiredOffsetMs": 1000,
+      "emittedOffsetMs": 1313,
+      "skippedSinceLast": 0,
+      "objects": [
+        {
+          "class": "car",
+          "score": 0.5364,
+          "bearingRightRad": 0.004622,
+          "bearingUpRad": -0.010169,
+          "surfaceRangeM": 11.4367,
+          "rangeValid": true,
+          "rangeSource": "stereo:sgbm+mask_median",
+          "maskPixels": 3217,
+          "boxNorm": [
+            0.4423,
+            0.4422,
+            0.5643,
+            0.5882
+          ],
+          "dominantColor": "blue"
+        }
+      ],
+      "objectsTotal": 1
+    },
+    {
+      "seq": 27,
+      "acquiredOffsetMs": 1203,
+      "emittedOffsetMs": 1594,
+      "skippedSinceLast": 0,
+      "objects": [
+        {
+          "class": "truck",
+          "score": 0.2592,
+          "bearingRightRad": -0.013444,
+          "bearingUpRad": -0.007713,
+          "surfaceRangeM": 11.4418,
+          "rangeValid": true,
+          "rangeSource": "stereo:sgbm+mask_median",
+          "maskPixels": 3254,
+          "boxNorm": [
+            0.4309,
+            0.4266,
+            0.5521,
+            0.587
+          ],
+          "dominantColor": "blue"
+        }
+      ],
+      "objectsTotal": 1
+    },
+    {
+      "seq": 28,
+      "acquiredOffsetMs": 1406,
+      "emittedOffsetMs": 1844,
+      "skippedSinceLast": 0,
+      "objects": [
+        {
+          "class": "car",
+          "score": 0.6438,
+          "bearingRightRad": -0.031096,
+          "bearingUpRad": -0.007055,
+          "surfaceRangeM": 11.4468,
+          "rangeValid": true,
+          "rangeSource": "stereo:sgbm+mask_median",
+          "maskPixels": 3341,
+          "boxNorm": [
+            0.4178,
+            0.4163,
+            0.5396,
+            0.5868
+          ],
+          "dominantColor": "blue"
+        }
+      ],
+      "objectsTotal": 1
+    },
+    {
+      "seq": 30,
+      "acquiredOffsetMs": 1813,
+      "emittedOffsetMs": 2094,
+      "skippedSinceLast": 1,
+      "objects": [
+        {
+          "class": "car",
+          "score": 0.62,
+          "bearingRightRad": -0.065964,
+          "bearingUpRad": -0.008712,
+          "surfaceRangeM": 11.4508,
+          "rangeValid": true,
+          "rangeSource": "stereo:sgbm+mask_median",
+          "maskPixels": 3323,
+          "boxNorm": [
+            0.3924,
+            0.4388,
+            0.5143,
+            0.5865
+          ],
+          "dominantColor": "blue"
+        }
+      ],
+      "objectsTotal": 1
+    },
+    {
+      "seq": 31,
+      "acquiredOffsetMs": 2000,
+      "emittedOffsetMs": 2375,
+      "skippedSinceLast": 0,
+      "objects": [
+        {
+          "class": "car",
+          "score": 0.4804,
+          "bearingRightRad": -0.084157,
+          "bearingUpRad": -0.010233,
+          "surfaceRangeM": 11.449,
+          "rangeValid": true,
+          "rangeSource": "stereo:sgbm+mask_median",
+          "maskPixels": 3223,
+          "boxNorm": [
+            0.38,
+            0.4418,
+            0.5024,
+            0.5862
+          ],
+          "dominantColor": "blue"
+        },
+        {
+          "class": "truck",
+          "score": 0.3644,
+          "bearingRightRad": -0.083462,
+          "bearingUpRad": -0.010183,
+          "surfaceRangeM": 11.449,
+          "rangeValid": true,
+          "rangeSource": "stereo:sgbm+mask_median",
+          "maskPixels": 3242,
+          "boxNorm": [
+            0.3802,
+            0.4427,
+            0.5025,
+            0.5856
+          ],
+          "dominantColor": "blue"
+        }
+      ],
+      "objectsTotal": 2
+    },
+    {
+      "seq": 32,
+      "acquiredOffsetMs": 2203,
+      "emittedOffsetMs": 2641,
+      "skippedSinceLast": 0,
+      "objects": [
+        {
+          "class": "car",
+          "score": 0.6619,
+          "bearingRightRad": -0.102945,
+          "bearingUpRad": -0.009655,
+          "surfaceRangeM": 11.5182,
+          "rangeValid": true,
+          "rangeSource": "stereo:sgbm+mask_median",
+          "maskPixels": 3254,
+          "boxNorm": [
+            0.3663,
+            0.4424,
+            0.4892,
+            0.5868
+          ],
+          "dominantColor": "blue"
+        }
+      ],
+      "objectsTotal": 1
+    },
+    {
+      "seq": 34,
+      "acquiredOffsetMs": 2609,
+      "emittedOffsetMs": 2828,
+      "skippedSinceLast": 1,
+      "objects": [
+        {
+          "class": "car",
+          "score": 0.7875,
+          "bearingRightRad": -0.100101,
+          "bearingUpRad": -0.009166,
+          "surfaceRangeM": 11.4988,
+          "rangeValid": true,
+          "rangeSource": "stereo:sgbm+mask_median",
+          "maskPixels": 3176,
+          "boxNorm": [
+            0.3675,
+            0.442,
+            0.4907,
+            0.5864
+          ],
+          "dominantColor": "blue"
+        }
+      ],
+      "objectsTotal": 1
+    },
+    {
+      "seq": 35,
+      "acquiredOffsetMs": 2813,
+      "emittedOffsetMs": 3031,
+      "skippedSinceLast": 0,
+      "objects": [
+        {
+          "class": "car",
+          "score": 0.8281,
+          "bearingRightRad": -0.063881,
+          "bearingUpRad": -0.008423,
+          "surfaceRangeM": 11.4959,
+          "rangeValid": true,
+          "rangeSource": "stereo:sgbm+mask_median",
+          "maskPixels": 3126,
+          "boxNorm": [
+            0.3941,
+            0.443,
+            0.5169,
+            0.5872
+          ],
+          "dominantColor": "blue"
+        }
+      ],
+      "objectsTotal": 1
+    },
+    {
+      "seq": 36,
+      "acquiredOffsetMs": 3000,
+      "emittedOffsetMs": 3250,
+      "skippedSinceLast": 0,
+      "objects": [
+        {
+          "class": "car",
+          "score": 0.8322,
+          "bearingRightRad": -0.027265,
+          "bearingUpRad": -0.007543,
+          "surfaceRangeM": 11.45,
+          "rangeValid": true,
+          "rangeSource": "stereo:sgbm+mask_median",
+          "maskPixels": 3123,
+          "boxNorm": [
+            0.4205,
+            0.4412,
+            0.5421,
+            0.5873
+          ],
+          "dominantColor": "blue"
+        }
+      ],
+      "objectsTotal": 1
+    },
+    {
+      "seq": 37,
+      "acquiredOffsetMs": 3203,
+      "emittedOffsetMs": 3500,
+      "skippedSinceLast": 0,
+      "objects": [
+        {
+          "class": "car",
+          "score": 0.7432,
+          "bearingRightRad": 0.01028,
+          "bearingUpRad": -0.007335,
+          "surfaceRangeM": 11.4537,
+          "rangeValid": true,
+          "rangeSource": "stereo:sgbm+mask_median",
+          "maskPixels": 3126,
+          "boxNorm": [
+            0.4477,
+            0.4405,
+            0.5692,
+            0.5846
+          ],
+          "dominantColor": "blue"
+        }
+      ],
+      "objectsTotal": 1
+    },
+    {
+      "seq": 38,
+      "acquiredOffsetMs": 3406,
+      "emittedOffsetMs": 3797,
+      "skippedSinceLast": 0,
+      "objects": [
+        {
+          "class": "truck",
+          "score": 0.3551,
+          "bearingRightRad": 0.046082,
+          "bearingUpRad": -0.007767,
+          "surfaceRangeM": 11.4796,
+          "rangeValid": true,
+          "rangeSource": "stereo:sgbm+mask_median",
+          "maskPixels": 3231,
+          "boxNorm": [
+            0.472,
+            0.4395,
+            0.596,
+            0.5846
+          ],
+          "dominantColor": "blue"
+        },
+        {
+          "class": "car",
+          "score": 0.2893,
+          "bearingRightRad": 0.045072,
+          "bearingUpRad": -0.007819,
+          "surfaceRangeM": 11.4816,
+          "rangeValid": true,
+          "rangeSource": "stereo:sgbm+mask_median",
+          "maskPixels": 3240,
+          "boxNorm": [
+            0.4716,
+            0.4399,
+            0.5958,
+            0.5849
+          ],
+          "dominantColor": "blue"
+        }
+      ],
+      "objectsTotal": 2
+    },
+    {
+      "seq": 39,
+      "acquiredOffsetMs": 3609,
+      "emittedOffsetMs": 4047,
+      "skippedSinceLast": 0,
+      "objects": [
+        {
+          "class": "car",
+          "score": 0.5162,
+          "bearingRightRad": 0.070947,
+          "bearingUpRad": -0.007808,
+          "surfaceRangeM": 11.516,
+          "rangeValid": true,
+          "rangeSource": "stereo:sgbm+mask_median",
+          "maskPixels": 3296,
+          "boxNorm": [
+            0.4874,
+            0.4394,
+            0.6144,
+            0.5847
+          ],
+          "dominantColor": "blue"
+        }
+      ],
+      "objectsTotal": 1
+    },
+    {
+      "seq": 41,
+      "acquiredOffsetMs": 4000,
+      "emittedOffsetMs": 4344,
+      "skippedSinceLast": 1,
+      "objects": [
+        {
+          "class": "car",
+          "score": 0.4884,
+          "bearingRightRad": 0.118132,
+          "bearingUpRad": -0.008287,
+          "surfaceRangeM": 11.5809,
+          "rangeValid": true,
+          "rangeSource": "stereo:sgbm+mask_median",
+          "maskPixels": 3245,
+          "boxNorm": [
+            0.5241,
+            0.4408,
+            0.6476,
+            0.5976
+          ],
+          "dominantColor": "blue"
+        },
+        {
+          "class": "truck",
+          "score": 0.2923,
+          "bearingRightRad": 0.117367,
+          "bearingUpRad": -0.006447,
+          "surfaceRangeM": 11.5891,
+          "rangeValid": true,
+          "rangeSource": "stereo:sgbm+mask_median",
+          "maskPixels": 3418,
+          "boxNorm": [
+            0.5203,
+            0.43,
+            0.6496,
+            0.6022
+          ],
+          "dominantColor": "blue"
+        }
+      ],
+      "objectsTotal": 2
+    },
+    {
+      "seq": 42,
+      "acquiredOffsetMs": 4203,
+      "emittedOffsetMs": 4594,
+      "skippedSinceLast": 0,
+      "objects": [
+        {
+          "class": "car",
+          "score": 0.6437,
+          "bearingRightRad": 0.141203,
+          "bearingUpRad": -0.008988,
+          "surfaceRangeM": 11.5973,
+          "rangeValid": true,
+          "rangeSource": "stereo:sgbm+mask_median",
+          "maskPixels": 3205,
+          "boxNorm": [
+            0.541,
+            0.4417,
+            0.6641,
+            0.5939
+          ],
+          "dominantColor": "blue"
+        }
+      ],
+      "objectsTotal": 1
+    },
+    {
+      "seq": 43,
+      "acquiredOffsetMs": 4406,
+      "emittedOffsetMs": 4859,
+      "skippedSinceLast": 0,
+      "objects": [
+        {
+          "class": "car",
+          "score": 0.7403,
+          "bearingRightRad": 0.16452,
+          "bearingUpRad": -0.007626,
+          "surfaceRangeM": 11.6574,
+          "rangeValid": true,
+          "rangeSource": "stereo:sgbm+mask_median",
+          "maskPixels": 3262,
+          "boxNorm": [
+            0.5578,
+            0.4416,
+            0.6799,
+            0.5844
+          ],
+          "dominantColor": "blue"
+        }
+      ],
+      "objectsTotal": 1
+    },
+    {
+      "seq": 45,
+      "acquiredOffsetMs": 4813,
+      "emittedOffsetMs": 5156,
+      "skippedSinceLast": 1,
+      "objects": [
+        {
+          "class": "bus",
+          "score": 0.3921,
+          "bearingRightRad": 0.125934,
+          "bearingUpRad": -0.006428,
+          "surfaceRangeM": 11.5998,
+          "rangeValid": true,
+          "rangeSource": "stereo:sgbm+mask_median",
+          "maskPixels": 2994,
+          "boxNorm": [
+            0.5307,
+            0.4423,
+            0.652,
+            0.5817
+          ],
+          "dominantColor": "blue"
+        },
+        {
+          "class": "car",
+          "score": 0.3738,
+          "bearingRightRad": 0.126801,
+          "bearingUpRad": -0.006486,
+          "surfaceRangeM": 11.601,
+          "rangeValid": true,
+          "rangeSource": "stereo:sgbm+mask_median",
+          "maskPixels": 2971,
+          "boxNorm": [
+            0.5315,
+            0.4419,
+            0.6516,
+            0.5812
+          ],
+          "dominantColor": "blue"
+        }
+      ],
+      "objectsTotal": 2
+    },
+    {
+      "seq": 46,
+      "acquiredOffsetMs": 5000,
+      "emittedOffsetMs": 5422,
+      "skippedSinceLast": 0,
+      "objects": [
+        {
+          "class": "car",
+          "score": 0.4831,
+          "bearingRightRad": 0.100425,
+          "bearingUpRad": -0.006901,
+          "surfaceRangeM": 11.5691,
+          "rangeValid": true,
+          "rangeSource": "stereo:sgbm+mask_median",
+          "maskPixels": 2996,
+          "boxNorm": [
+            0.5132,
+            0.4417,
+            0.6313,
+            0.5792
+          ],
+          "dominantColor": "blue"
+        }
+      ],
+      "objectsTotal": 1
+    },
+    {
+      "seq": 48,
+      "acquiredOffsetMs": 5422,
+      "emittedOffsetMs": 5672,
+      "skippedSinceLast": 1,
+      "objects": [
+        {
+          "class": "car",
+          "score": 0.6124,
+          "bearingRightRad": 0.047091,
+          "bearingUpRad": -0.003447,
+          "surfaceRangeM": 11.642,
+          "rangeValid": true,
+          "rangeSource": "stereo:sgbm+mask_median",
+          "maskPixels": 2862,
+          "boxNorm": [
+            0.4765,
+            0.438,
+            0.5918,
+            0.5762
+          ],
+          "dominantColor": "blue"
+        }
+      ],
+      "objectsTotal": 1
+    },
+    {
+      "seq": 49,
+      "acquiredOffsetMs": 5594,
+      "emittedOffsetMs": 5922,
+      "skippedSinceLast": 0,
+      "objects": [
+        {
+          "class": "car",
+          "score": 0.4659,
+          "bearingRightRad": 0.02118,
+          "bearingUpRad": -0.001523,
+          "surfaceRangeM": 11.8003,
+          "rangeValid": true,
+          "rangeSource": "stereo:sgbm+mask_median",
+          "maskPixels": 2849,
+          "boxNorm": [
+            0.4585,
+            0.4242,
+            0.5727,
+            0.5738
+          ],
+          "dominantColor": "blue"
+        }
+      ],
+      "objectsTotal": 1
+    },
+    {
+      "seq": 50,
+      "acquiredOffsetMs": 5828,
+      "emittedOffsetMs": 6125,
+      "skippedSinceLast": 0,
+      "objects": [],
+      "objectsTotal": 0
+    },
+    {
+      "seq": 51,
+      "acquiredOffsetMs": 6016,
+      "emittedOffsetMs": 6328,
+      "skippedSinceLast": 0,
+      "objects": [
+        {
+          "class": "car",
+          "score": 0.5579,
+          "bearingRightRad": 0.004551,
+          "bearingUpRad": -0.009304,
+          "surfaceRangeM": 11.4318,
+          "rangeValid": true,
+          "rangeSource": "stereo:sgbm+mask_median",
+          "maskPixels": 3229,
+          "boxNorm": [
+            0.4423,
+            0.4413,
+            0.5641,
+            0.5878
+          ],
+          "dominantColor": "blue"
+        }
+      ],
+      "objectsTotal": 1
+    },
+    {
+      "seq": 52,
+      "acquiredOffsetMs": 6188,
+      "emittedOffsetMs": 6563,
+      "skippedSinceLast": 0,
+      "objects": [
+        {
+          "class": "truck",
+          "score": 0.2598,
+          "bearingRightRad": -0.013478,
+          "bearingUpRad": -0.007503,
+          "surfaceRangeM": 11.4444,
+          "rangeValid": true,
+          "rangeSource": "stereo:sgbm+mask_median",
+          "maskPixels": 3231,
+          "boxNorm": [
+            0.4307,
+            0.4206,
+            0.5521,
+            0.5871
+          ],
+          "dominantColor": "blue"
+        }
+      ],
+      "objectsTotal": 1
+    },
+    {
+      "seq": 53,
+      "acquiredOffsetMs": 6422,
+      "emittedOffsetMs": 6859,
+      "skippedSinceLast": 0,
+      "objects": [
+        {
+          "class": "car",
+          "score": 0.5385,
+          "bearingRightRad": -0.031047,
+          "bearingUpRad": -0.007315,
+          "surfaceRangeM": 11.4466,
+          "rangeValid": true,
+          "rangeSource": "stereo:sgbm+mask_median",
+          "maskPixels": 3301,
+          "boxNorm": [
+            0.4177,
+            0.4152,
+            0.5396,
+            0.587
+          ],
+          "dominantColor": "blue"
+        }
+      ],
+      "objectsTotal": 1
+    },
+    {
+      "seq": 55,
+      "acquiredOffsetMs": 6813,
+      "emittedOffsetMs": 7109,
+      "skippedSinceLast": 1,
+      "objects": [
+        {
+          "class": "car",
+          "score": 0.5681,
+          "bearingRightRad": -0.06662,
+          "bearingUpRad": -0.008985,
+          "surfaceRangeM": 11.4567,
+          "rangeValid": true,
+          "rangeSource": "stereo:sgbm+mask_median",
+          "maskPixels": 3344,
+          "boxNorm": [
+            0.3924,
+            0.4379,
+            0.5144,
+            0.5866
+          ],
+          "dominantColor": "blue"
+        }
+      ],
+      "objectsTotal": 1
+    },
+    {
+      "seq": 56,
+      "acquiredOffsetMs": 7000,
+      "emittedOffsetMs": 7359,
+      "skippedSinceLast": 0,
+      "objects": [
+        {
+          "class": "car",
+          "score": 0.4601,
+          "bearingRightRad": -0.083765,
+          "bearingUpRad": -0.008474,
+          "surfaceRangeM": 11.4523,
+          "rangeValid": true,
+          "rangeSource": "stereo:sgbm+mask_median",
+          "maskPixels": 3198,
+          "boxNorm": [
+            0.3803,
+            0.4413,
+            0.5019,
+            0.5855
+          ],
+          "dominantColor": "blue"
+        },
+        {
+          "class": "truck",
+          "score": 0.4025,
+          "bearingRightRad": -0.083647,
+          "bearingUpRad": -0.009145,
+          "surfaceRangeM": 11.4509,
+          "rangeValid": true,
+          "rangeSource": "stereo:sgbm+mask_median",
+          "maskPixels": 3160,
+          "boxNorm": [
+            0.3802,
+            0.4424,
+            0.5021,
+            0.5856
+          ],
+          "dominantColor": "blue"
+        }
+      ],
+      "objectsTotal": 2
+    },
+    {
+      "seq": 57,
+      "acquiredOffsetMs": 7203,
+      "emittedOffsetMs": 7594,
+      "skippedSinceLast": 0,
+      "objects": [
+        {
+          "class": "car",
+          "score": 0.6308,
+          "bearingRightRad": -0.103021,
+          "bearingUpRad": -0.00929,
+          "surfaceRangeM": 11.5155,
+          "rangeValid": true,
+          "rangeSource": "stereo:sgbm+mask_median",
+          "maskPixels": 3294,
+          "boxNorm": [
+            0.3662,
+            0.4408,
+            0.489,
+            0.5866
+          ],
+          "dominantColor": "blue"
+        }
+      ],
+      "objectsTotal": 1
+    },
+    {
+      "seq": 58,
+      "acquiredOffsetMs": 7406,
+      "emittedOffsetMs": 7844,
+      "skippedSinceLast": 0,
+      "objects": [
+        {
+          "class": "car",
+          "score": 0.5345,
+          "bearingRightRad": -0.120303,
+          "bearingUpRad": -0.008953,
+          "surfaceRangeM": 11.4883,
+          "rangeValid": true,
+          "rangeSource": "stereo:sgbm+mask_median",
+          "maskPixels": 3256,
+          "boxNorm": [
+            0.354,
+            0.439,
+            0.4766,
+            0.5852
+          ],
+          "dominantColor": "blue"
+        }
+      ],
+      "objectsTotal": 1
+    },
+    {
+      "seq": 60,
+      "acquiredOffsetMs": 7813,
+      "emittedOffsetMs": 8078,
+      "skippedSinceLast": 1,
+      "objects": [
+        {
+          "class": "car",
+          "score": 0.8052,
+          "bearingRightRad": -0.064493,
+          "bearingUpRad": -0.008713,
+          "surfaceRangeM": 11.4842,
+          "rangeValid": true,
+          "rangeSource": "stereo:sgbm+mask_median",
+          "maskPixels": 3166,
+          "boxNorm": [
+            0.3935,
+            0.4427,
+            0.5166,
+            0.5869
+          ],
+          "dominantColor": "blue"
+        }
+      ],
+      "objectsTotal": 1
+    }
+  ]
+}
