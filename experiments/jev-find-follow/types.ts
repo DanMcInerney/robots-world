@@ -145,6 +145,10 @@ export interface DecisionRecord {
   perceptionWallMs: number;
   controllerWallMs: number;
   cycleWallMs: number;
+  /** Camera-grid boundaries latest-wins-skipped during THIS decision cycle only — a per-decision
+   * count, NOT a running episode total: episode.ts resets its counter after every decision, so the
+   * episode total is the SUM across decisions (scoring.ts's `score.skippedAcquisitions`), never the
+   * last decision's own value. */
   skippedAcquisitions: number;
   /** How many camera acquisitions were folded into this decision cycle (>=1) — decoupled
    * acquisition/decision cadence (engine-review-e1 finding 3): every one of them updated derived

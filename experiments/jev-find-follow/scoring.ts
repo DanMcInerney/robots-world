@@ -320,6 +320,8 @@ export function scoreEpisode(input: ScoringInput, criteria: PassCriteria | null 
 
   const score: EpisodeScore = {
     decisionCount: decisions.length,
+    // A SUM is correct here: `d.skippedAcquisitions` is a per-decision count (episode.ts resets its
+    // counter after every decision), not a running total — see DecisionRecord's own docstring.
     skippedAcquisitions: decisions.reduce((n, d) => n + d.skippedAcquisitions, 0),
     timeToFirstSensorDetectionMs, timeToFirstControllerVisibleDetectionMs, timeToFollowLockMs,
     visibleFraction: input.durationMs ? visibleMs / input.durationMs : 0,

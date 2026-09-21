@@ -155,6 +155,22 @@ test('skipped acquisitions and wall-time totals are summed across decisions for 
   assert.equal(score.wallTime.perDecisionMeanWallMs, 925);
 });
 
+// Skip-count semantics regression: `DecisionRecord.skippedAcquisitions` is a PER-DECISION count
+// (episode.ts resets its counter after every decision), NOT a running episode total — a review note
+// once misread it as cumulative and proposed scoring the LAST decision's own value. This fixture is
+// the series a real steady-skip episode produces (flat, not a 4,12,20 ramp — measured via
+// test/jev-find-follow-loop.test.ts's "skips still occur" scenario, whose grid-accounting identity
+// pins the episode.ts half of this same contract end to end).
+test('score.skippedAcquisitions is the SUM of per-decision skip counts, never just the last decision\'s own value', () => {
+  const perDecision = [4, 8, 8];
+  const decisions = perDecision.map((skippedAcquisitions, i) => decision({ index: i, acquiredSimMs: i * 200, skippedAcquisitions }));
+  const evaluatorByAcquiredSimMs = new Map(decisions.map(d => [d.acquiredSimMs, evaluatorSnapshot(d.acquiredSimMs)]));
+  const score = scoreEpisode({ ...baseInput, durationMs: 600, decisions, evaluatorByAcquiredSimMs, contacts: [] });
+  assert.equal(score.skippedAcquisitions, 20, 'episode total = 4 + 8 + 8');
+  assert.notEqual(score.skippedAcquisitions, perDecision.at(-1), 'the last decision\'s own count (8) covers only that final cycle');
+  assert.equal(scoreEpisode({ ...baseInput, durationMs: 600, decisions: [], evaluatorByAcquiredSimMs: new Map(), contacts: [] }).skippedAcquisitions, 0, 'no decisions -> 0, never NaN/undefined');
+});
+
 // engine-review-e2 finding 2: consequence-fidelity must cover EVERY option family with n reported,
 // not just yaw and fixed-distance — this covers speed-hold, whose declared outcome is a RATE, not a
 // fixed printed step, so it is compared as (range delta / elapsed time) against the declared speed.

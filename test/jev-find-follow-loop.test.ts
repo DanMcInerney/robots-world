@@ -267,8 +267,10 @@ test('A4: no camera-grid slot is silently lost between the controller genuinely 
       scheduler: { cameraPeriodMs, perceptionLatencyMs: 5, controllerLatencyMs: 5, admissionDelayMs: 200, pacingFloorMs: 10, commandLeaseMs: 300, physicsDtMs: 20 },
     });
     const expectedBoundaries = Math.floor(durationMs / cameraPeriodMs);
-    const lastDecision = report.decisions[report.decisions.length - 1];
-    const skipped = lastDecision ? lastDecision.skippedAcquisitions : 0;
+    // The WHOLE-EPISODE skip count is the score's sum: `DecisionRecord.skippedAcquisitions` is a
+    // per-decision count (reset after every decision), so the last decision's own value would only
+    // cover that one final cycle.
+    const skipped = report.score.skippedAcquisitions;
     assert.equal(skipped, 0, 'perceptionLatencyMs(5) < cameraPeriodMs(50): there is no legitimate reason for any latest-wins skip in this scenario');
     assert.ok(
       report.evaluatorOnly.frames.length >= expectedBoundaries - 2,
@@ -302,8 +304,7 @@ test('A4: withSeededLatency over a whole episode gives a sane decision count and
       assert.ok(report.decisions.length >= 5, `expected a sane number of decisions over a 15s episode (never degenerating to 1), got ${report.decisions.length}`);
       assert.ok(report.decisions.every(d => d.controllerWallMs <= clampMaxMs + 50), `every decision's measured real controller latency must respect the declared clamp (<=${clampMaxMs}ms + slack), got a max of ${Math.max(...report.decisions.map(d => d.controllerWallMs))}`);
       const expectedBoundaries = Math.floor(durationMs / cameraPeriodMs);
-      const lastDecision = report.decisions[report.decisions.length - 1];
-      const skipped = lastDecision ? lastDecision.skippedAcquisitions : 0;
+      const skipped = report.score.skippedAcquisitions; // whole-episode total (per-decision counts, summed) -- never the last decision's own value
       assert.ok(report.evaluatorOnly.frames.length + skipped >= expectedBoundaries - 2, `expected acquired+skipped (${report.evaluatorOnly.frames.length}+${skipped}) to account for nearly all ${expectedBoundaries} grid boundaries over the whole episode`);
     }
   });
@@ -357,6 +358,21 @@ test('E3b defect A: skips still occur when perception latency exceeds the camera
       scheduler: { cameraPeriodMs: 50, perceptionLatencyMs: 120, controllerLatencyMs: 250, admissionDelayMs: 20, pacingFloorMs: 505, commandLeaseMs: 1500, physicsDtMs: 20 },
     });
     assert.ok(report.score.skippedAcquisitions > 0, `perceptionLatencyMs(120) > cameraPeriodMs(50) must still produce real latest-wins skips, got ${report.score.skippedAcquisitions}`);
+
+    // Skip-count semantics regression (a review note once misread `DecisionRecord.skippedAcquisitions`
+    // as a running episode total and proposed scoring the LAST decision's value instead of the sum).
+    // The grid-accounting identity pins BOTH halves at once, in a genuinely skip-heavy episode: every
+    // camera-grid slot is either acquired or skipped, so acquired + score.skippedAcquisitions must
+    // account for (nearly) all of them and can never exceed them. It breaks HIGH if episode.ts ever
+    // stops resetting its per-decision counter (summing running totals over-counts triangularly),
+    // and breaks LOW if scoring.ts ever switches to the last decision's own value.
+    const perDecision = report.decisions.map(d => d.skippedAcquisitions);
+    const expectedBoundaries = Math.floor(4000 / 50);
+    const accounted = report.evaluatorOnly.frames.length + report.score.skippedAcquisitions;
+    assert.equal(report.score.skippedAcquisitions, perDecision.reduce((a, b) => a + b, 0), 'the score is the sum of the per-decision counts');
+    assert.ok(report.decisions.length >= 3 && perDecision.filter(n => n > 0).length >= 2, `this scenario must spread real skips across several decisions to discriminate sum from last-value, got [${perDecision.join(',')}]`);
+    assert.ok(accounted <= expectedBoundaries, `acquired+skipped (${report.evaluatorOnly.frames.length}+${report.score.skippedAcquisitions}) exceeds the ${expectedBoundaries} grid slots that exist -- per-decision counts [${perDecision.join(',')}] are being over-counted (is the per-decision counter still reset after every decision?)`);
+    assert.ok(accounted >= expectedBoundaries - 2, `acquired+skipped (${report.evaluatorOnly.frames.length}+${report.score.skippedAcquisitions}) leaves grid slots unaccounted for out of ${expectedBoundaries} -- per-decision counts [${perDecision.join(',')}] are being under-counted (the last decision's own value, ${perDecision.at(-1)}, is NOT the episode total)`);
   });
 });
 
