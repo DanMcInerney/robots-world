@@ -16,10 +16,13 @@
  * renderer.py is READ-ONLY: this repository's other in-flight experiment owns it, and this
  * assignment's own workspace boundary excludes it from files this engine may edit. HFOV/resolution/
  * baseline are therefore fixed renderer constants (declared gap; see the coordinator report). The
- * script/interpreter are referenced by absolute path into the main checkout
- * (C:\Users\danhm\tools\robots-world), where the actual weights/asset (.runtime/experiments/
- * jev-round3-v1/camera/assets/ferrari.glb) resolve via renderer.py's own `__file__`-relative path —
- * this worktree's own .runtime is empty by design (a fresh checkout has none).
+ * script/interpreter are referenced by absolute path into the main checkout (Unit E4b / A7: this
+ * path is now configured via the `ROBOTS_WORLD_RUNTIME_ROOT` environment variable, read by
+ * run.ts/run-provisional-ladder.ts/the GPU-gated tests — see any of their own docstrings for the
+ * exact resolution — never a hardcoded machine-specific path in source), where the actual
+ * weights/asset (.runtime/experiments/jev-round3-v1/camera/assets/ferrari.glb) resolve via
+ * renderer.py's own `__file__`-relative path — this worktree's own .runtime is empty by design (a
+ * fresh checkout has none).
  */
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
 import { mkdir } from 'node:fs/promises';

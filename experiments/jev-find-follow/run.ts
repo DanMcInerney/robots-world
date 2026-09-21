@@ -14,7 +14,7 @@
  */
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { SMOKE_SCENARIOS } from './scenarios.ts';
 import { runEpisode, type EpisodeScenario } from './episode.ts';
 import { createPassiveController } from './controllers/passive.ts';
@@ -30,7 +30,22 @@ import { runReferenceCeiling } from './reference-ceiling.ts';
 import { runB3Sweep } from './b3-sweep.ts';
 import { buildProvisionalLadder, ROUND3_RIG, CANDIDATE_HIGHER_RIG, ROUND3_RIG_D0_M, CANDIDATE_HIGHER_RIG_D0_M } from './ladder-scenarios.ts';
 
-const MAIN_CHECKOUT = 'C:/Users/danhm/tools/robots-world';
+// Unit E4b / A7 (coordinator instruction): ONE owner, ROBOTS_WORLD_RUNTIME_ROOT, replacing the
+// previous hardcoded user-specific absolute path (`MAIN_CHECKOUT`). Defaults to this repo's own
+// (normally empty/missing here by design) `.runtime` directory, resolved from this module's own
+// location — same pattern test/jev-library.test.ts already uses — so a GPU-gated command fails
+// obviously/fast rather than silently on a machine with no local environment configured. Set
+// ROBOTS_WORLD_RUNTIME_ROOT to the main checkout's own `.runtime` directory to run for real (this
+// session's own local value is recorded in WORKLOG.md, not here). `MAIN_CHECKOUT_ROOT` (one level
+// up from RUNTIME_ROOT, since `.runtime` always sits directly under a checkout root) is where
+// `renderer.py`'s own SOURCE lives — kept pointed at the main checkout, not this worktree's own
+// tracked copy (confirmed textually different — the main checkout's copy is owned by another
+// in-flight experiment and has moved on since this worktree branched), matching every prior unit's
+// own behaviour.
+const RUNTIME_ROOT = process.env.ROBOTS_WORLD_RUNTIME_ROOT
+  ? resolve(process.env.ROBOTS_WORLD_RUNTIME_ROOT)
+  : fileURLToPath(new URL('../../.runtime', import.meta.url));
+const MAIN_CHECKOUT_ROOT = resolve(RUNTIME_ROOT, '..');
 
 // Increment B3: the provisional L1-L4 scenarios, registered here (ids `l1-round3`, `l1-higher`,
 // etc.) so `episode`/`batch` can address them by name exactly like the two frozen smoke scenarios —
@@ -90,11 +105,11 @@ async function resolveEnvPaths(flags: Map<string, string>): Promise<EnvPaths> {
   // FAILURES.md #1: the assignment's own path hint (perception/.venv) is a DIFFERENT venv (used
   // for the Round 3 stereo/detector comparison, no trimesh/pyrender/DracoPy); renderer.py's actual
   // dependencies live in camera/env, confirmed by a standalone renderer-client.ts smoke test.
-  const rendererPython = flags.get('renderer-python') ?? resolve(MAIN_CHECKOUT, '.runtime/experiments/jev-round3-v1/camera/env/Scripts/python.exe');
-  const rendererScript = flags.get('renderer-script') ?? resolve(MAIN_CHECKOUT, 'experiments/jev-round3/camera/renderer.py');
-  const sensorPython = flags.get('sensor-python') ?? resolve(MAIN_CHECKOUT, '.runtime/experiments/jev-library-v1/detector/.venv/Scripts/python.exe');
+  const rendererPython = flags.get('renderer-python') ?? resolve(RUNTIME_ROOT, 'experiments/jev-round3-v1/camera/env/Scripts/python.exe');
+  const rendererScript = flags.get('renderer-script') ?? resolve(MAIN_CHECKOUT_ROOT, 'experiments/jev-round3/camera/renderer.py');
+  const sensorPython = flags.get('sensor-python') ?? resolve(RUNTIME_ROOT, 'experiments/jev-library-v1/detector/.venv/Scripts/python.exe');
   const sensorCwd = flags.get('sensor-cwd') ?? resolve('experiments/jev-library');
-  const checkpointPath = flags.get('checkpoint') ?? resolve(MAIN_CHECKOUT, '.runtime/experiments/jev-library-v1/detector/models/yolo11s-seg.pt');
+  const checkpointPath = flags.get('checkpoint') ?? resolve(RUNTIME_ROOT, 'experiments/jev-library-v1/detector/models/yolo11s-seg.pt');
   const detectorRuntimeRoot = flags.get('detector-runtime-root') ?? resolve('.runtime/experiments/jev-find-follow-v1/detector-runtime');
   await mkdir(detectorRuntimeRoot, { recursive: true });
   return { rendererPython, rendererScript, sensorPython, sensorCwd, checkpointPath, detectorRuntimeRoot };

@@ -12,18 +12,30 @@ import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
 import { mkdtemp, readdir, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
+import { fileURLToPath } from 'node:url';
 import { join, resolve } from 'node:path';
 import test from 'node:test';
 import { startRendererClient } from '../experiments/jev-find-follow/renderer-client.ts';
 import { startSensorClient } from '../experiments/jev-find-follow/sensor-client.ts';
 
-const MAIN_CHECKOUT = 'C:/Users/danhm/tools/robots-world';
+// Unit E4b / A7 (coordinator instruction, not the previous hardcoded user-specific absolute path):
+// ONE owner, `ROBOTS_WORLD_RUNTIME_ROOT`, defaulting to THIS repo's own (normally empty/missing by
+// design in this worktree) `.runtime` directory, resolved from this module's own location — same
+// pattern test/jev-library.test.ts already uses — so this file skips cleanly with no local
+// environment configured. `MAIN_CHECKOUT_ROOT` (one level up from RUNTIME_ROOT, since `.runtime`
+// always sits directly under a checkout root) is where `renderer.py`'s own SOURCE lives — kept
+// pointed at the main checkout, not this worktree's own tracked (and confirmed textually
+// different) copy, matching every prior unit's own behaviour.
+const RUNTIME_ROOT = process.env.ROBOTS_WORLD_RUNTIME_ROOT
+  ? resolve(process.env.ROBOTS_WORLD_RUNTIME_ROOT)
+  : fileURLToPath(new URL('../.runtime', import.meta.url));
+const MAIN_CHECKOUT_ROOT = resolve(RUNTIME_ROOT, '..');
 const rendererPython = process.env.JEV_FIND_FOLLOW_RENDERER_PYTHON
-  ?? resolve(MAIN_CHECKOUT, '.runtime/experiments/jev-round3-v1/camera/env/Scripts/python.exe');
-const rendererScript = resolve(MAIN_CHECKOUT, 'experiments/jev-round3/camera/renderer.py');
+  ?? resolve(RUNTIME_ROOT, 'experiments/jev-round3-v1/camera/env/Scripts/python.exe');
+const rendererScript = resolve(MAIN_CHECKOUT_ROOT, 'experiments/jev-round3/camera/renderer.py');
 const detectorPython = process.env.JEV_FIND_FOLLOW_DETECTOR_PYTHON
-  ?? resolve(MAIN_CHECKOUT, '.runtime/experiments/jev-library-v1/detector/.venv/Scripts/python.exe');
-const checkpointPath = resolve(MAIN_CHECKOUT, '.runtime/experiments/jev-library-v1/detector/models/yolo11s-seg.pt');
+  ?? resolve(RUNTIME_ROOT, 'experiments/jev-library-v1/detector/.venv/Scripts/python.exe');
+const checkpointPath = resolve(RUNTIME_ROOT, 'experiments/jev-library-v1/detector/models/yolo11s-seg.pt');
 
 const rendererAvailable = existsSync(rendererPython) && existsSync(rendererScript);
 const sensorAvailable = existsSync(detectorPython) && existsSync(checkpointPath);

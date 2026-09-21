@@ -13,13 +13,20 @@ import { existsSync, readFileSync } from 'node:fs';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 import { startRendererClient } from '../experiments/jev-find-follow/renderer-client.ts';
 
-const MAIN_CHECKOUT = 'C:/Users/danhm/tools/robots-world';
+// Unit E4b / A7: ONE owner, ROBOTS_WORLD_RUNTIME_ROOT, replacing the previous hardcoded
+// user-specific absolute path — see test/jev-find-follow-real-integration.test.ts's own (identical)
+// comment for the full reasoning.
+const RUNTIME_ROOT = process.env.ROBOTS_WORLD_RUNTIME_ROOT
+  ? resolve(process.env.ROBOTS_WORLD_RUNTIME_ROOT)
+  : fileURLToPath(new URL('../.runtime', import.meta.url));
+const MAIN_CHECKOUT_ROOT = resolve(RUNTIME_ROOT, '..');
 const rendererPython = process.env.JEV_FIND_FOLLOW_RENDERER_PYTHON
-  ?? resolve(MAIN_CHECKOUT, '.runtime/experiments/jev-round3-v1/camera/env/Scripts/python.exe');
-const rendererScript = resolve(MAIN_CHECKOUT, 'experiments/jev-round3/camera/renderer.py');
+  ?? resolve(RUNTIME_ROOT, 'experiments/jev-round3-v1/camera/env/Scripts/python.exe');
+const rendererScript = resolve(MAIN_CHECKOUT_ROOT, 'experiments/jev-round3/camera/renderer.py');
 const rendererAvailable = existsSync(rendererPython) && existsSync(rendererScript);
 const skipReason = 'Optional local renderer environment unavailable (set JEV_FIND_FOLLOW_RENDERER_PYTHON to override); no installs, no held network access';
 

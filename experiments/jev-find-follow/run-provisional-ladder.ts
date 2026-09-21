@@ -21,7 +21,7 @@
  */
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { runEpisode, type EpisodeScenario } from './episode.ts';
 import { createPassiveController } from './controllers/passive.ts';
 import { createReferenceController } from './controllers/reference.ts';
@@ -30,7 +30,12 @@ import { createSeededRandomController } from './controllers/seeded-random.ts';
 import { buildProvisionalLadder, ROUND3_RIG, CANDIDATE_HIGHER_RIG, ROUND3_RIG_D0_M, CANDIDATE_HIGHER_RIG_D0_M, type MeasuredEnvelope } from './ladder-scenarios.ts';
 import type { EngineController } from './controllers/types.ts';
 
-const MAIN_CHECKOUT = 'C:/Users/danhm/tools/robots-world';
+// Unit E4b / A7 (coordinator instruction): ONE owner, ROBOTS_WORLD_RUNTIME_ROOT — see run.ts's own
+// (identical) comment for the full reasoning.
+const RUNTIME_ROOT = process.env.ROBOTS_WORLD_RUNTIME_ROOT
+  ? resolve(process.env.ROBOTS_WORLD_RUNTIME_ROOT)
+  : fileURLToPath(new URL('../../.runtime', import.meta.url));
+const MAIN_CHECKOUT_ROOT = resolve(RUNTIME_ROOT, '..');
 
 function parseFlags(argv: string[]): Map<string, string> {
   const map = new Map<string, string>();
@@ -68,11 +73,11 @@ async function main() {
   const strongestConstantYaw = flags.get('strongest-constant-yaw') ?? 'yaw_left_10';
   const strongestConstantRange = flags.get('strongest-constant-range') ?? 'speed_0_5';
 
-  const rendererPython = flags.get('renderer-python') ?? resolve(MAIN_CHECKOUT, '.runtime/experiments/jev-round3-v1/camera/env/Scripts/python.exe');
-  const rendererScript = flags.get('renderer-script') ?? resolve(MAIN_CHECKOUT, 'experiments/jev-round3/camera/renderer.py');
-  const sensorPython = flags.get('sensor-python') ?? resolve(MAIN_CHECKOUT, '.runtime/experiments/jev-library-v1/detector/.venv/Scripts/python.exe');
+  const rendererPython = flags.get('renderer-python') ?? resolve(RUNTIME_ROOT, 'experiments/jev-round3-v1/camera/env/Scripts/python.exe');
+  const rendererScript = flags.get('renderer-script') ?? resolve(MAIN_CHECKOUT_ROOT, 'experiments/jev-round3/camera/renderer.py');
+  const sensorPython = flags.get('sensor-python') ?? resolve(RUNTIME_ROOT, 'experiments/jev-library-v1/detector/.venv/Scripts/python.exe');
   const sensorCwd = flags.get('sensor-cwd') ?? resolve('experiments/jev-library');
-  const checkpointPath = flags.get('checkpoint') ?? resolve(MAIN_CHECKOUT, '.runtime/experiments/jev-library-v1/detector/models/yolo11s-seg.pt');
+  const checkpointPath = flags.get('checkpoint') ?? resolve(RUNTIME_ROOT, 'experiments/jev-library-v1/detector/models/yolo11s-seg.pt');
   const detectorRuntimeRoot = flags.get('detector-runtime-root') ?? resolve('.runtime/experiments/jev-find-follow-v1/detector-runtime');
   await mkdir(detectorRuntimeRoot, { recursive: true });
 
