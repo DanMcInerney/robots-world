@@ -123,6 +123,8 @@ test('actual adapted wire is metered and late mapped response reaches its sink b
     const adapter = createLiveJudge({ condition: 'selected-representation', selection, directory, send: (request, id) => meter.judge(request, id) as Promise<BenchResponse> });
     const summary = await runBench({ id, arm: 'receipt', seed: 7100, pattern: 'stationary-offset', seconds: .12, outputDir: join(root, 'episodes'), judge: adapter.judge });
     assert.equal(summary.status, 'completed'); assert(summary.pendingAtStop); assert.equal(summary.commandCounts.accepted, 0);
+    // The meter journals durably before it calls send; on a loaded runner that can outlast this 120 ms episode.
+    for (let i = 0; i < 500 && !captured; i++) await new Promise(r => setTimeout(r, 10));
     assert(captured.state.liveGeometry); assert.equal(Object.keys(captured.questions).length, 8);
     release(reply(captured, 'left_30')); const settled = await adapter.drain(); assert.deepEqual(settled.errors, []); assert.equal(settled.sinks.length, 1); assert(settled.sinks[0]!.path.endsWith('.late.json'));
     const requestId = settled.requestIds[0]!, wire = await readCompleted(captured, requestId, ledger(root)[0], root);
@@ -133,7 +135,7 @@ test('actual adapted wire is metered and late mapped response reaches its sink b
     durable(join(directory, 'finalization.json'), { requestIds: settled.requestIds, files }, true);
     await new Promise(r => setTimeout(r, 40)); assert.deepEqual(await liveEvidenceEntries(directory), files);
     assert.equal(JSON.parse(readFileSync(join(directory, 'commands.json'), 'utf8')).length, 0);
-  } finally { meter.close(); }
+  } catch (error) { console.error('primary failure before meter.close():', error); throw error; } finally { meter.close(); }
 });
 
 test('missing engine normal/late sink is an explicit finalization failure', async t => {
