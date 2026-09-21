@@ -114,3 +114,7 @@ bound. See the dated "Quiet-machine re-measurement" section in
 [jev-live-sensor-results.md](docs/jev-live-sensor-results.md) and the F76 addendum in
 [design-failures.md](docs/design-failures.md) for the full tables, how it was run, and the tool defects
 encountered along the way.
+
+## Living playbook
+
+The running summary of data formats, control designs and test strategies that work for Jev, with evidence and open questions, is [JEV-PLAYBOOK.md](JEV-PLAYBOOK.md). Update it as results change.
