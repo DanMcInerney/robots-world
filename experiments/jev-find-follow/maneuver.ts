@@ -140,6 +140,24 @@ export function buildSpeedHoldMenu(declaredMaxTargetSpeedMps: number, options: {
 export const SPEED_HOLD_MENU: ManeuverMenu = buildSpeedHoldMenu(3.0);
 export const SPEED_HOLD_HORIZON_S = 1.0;
 export const SEARCH_MENU: ManeuverMenu = DEFAULT_MENU;
+
+/** S1 assignment item 2: search-mode menu for the coverage-memory experiment, adding two larger
+ * bounded translate options (`advance_8m`/`advance_15m`) so a translate option can plausibly cross
+ * an open field far enough to bring genuinely new ground into detector range in one bounded move —
+ * `approach_1m`/`approach_2m` (kept, unchanged, in `DEFAULT_MENU`) are too short to matter at the
+ * ~18m coverage effective-range scale. Additive only (spreads `DEFAULT_MENU` first): every existing
+ * id/definition is byte-for-byte unchanged, so `SEARCH_MENU` (unchanged) and any caller keyed by the
+ * original menu's ids stay valid. Used only by the l5/l8 search-encoding scenarios below, on ALL
+ * THREE search-variant arms compared there (sector-consequences included) — S1's explicit "same
+ * menus... across arms" requirement, so the comparison isolates the ENCODING, not the action
+ * repertoire. Execution needs no engine change: `executeManeuver`'s translate branch below reads
+ * `distanceM` generically (already true for every existing translate id).
+ */
+export const SEARCH_MENU_WIDE: ManeuverMenu = Object.freeze({
+  ...DEFAULT_MENU,
+  advance_8m: { kind: 'translate', directionOffsetDeg: 0, distanceM: 8, label: 'Move 8 m toward the camera-heading direction' },
+  advance_15m: { kind: 'translate', directionOffsetDeg: 0, distanceM: 15, label: 'Move 15 m toward the camera-heading direction' },
+});
 export const TRANSLATE_SPEED_MPS = 1.0;
 
 /** engine-review-e3 finding 3 (printed != realised, at DEFAULT config): a fixed-distance translate

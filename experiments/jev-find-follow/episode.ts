@@ -49,12 +49,13 @@ import {
 import { estimateRate, type RateSample } from './rate-estimate.ts';
 import { createOwnStateTracker } from './own-state.ts';
 import { createSectorMemory, updateSectorMemory, ageSectorMemory, deriveClearance, sectorIndexForHeading, DEFAULT_SECTOR_MEMORY_CONFIG, type SectorMemoryConfig } from './sector-memory.ts';
+import { createCoverageMemory, updateCoverageMemory, ageCoverageMemory, DEFAULT_COVERAGE_MEMORY_CONFIG, type CoverageMemoryConfig } from './coverage-memory.ts';
 import { createTargetBinder } from './target-binder.ts';
 import { createWorldBridge, type WorldBridge, type WorldBridgeConfig } from './world-bridge.ts';
 import { startRendererClient, type RendererClient, type RendererClientOptions } from './renderer-client.ts';
 import { startSensorClient, type SensorClient, type SensorClientOptions } from './sensor-client.ts';
 import type { EngineController } from './controllers/types.ts';
-import type { BindResult, ClearanceStatus, DecisionRecord, Goal, LastSeenRecord, Mode, OwnState, StereoObject } from './types.ts';
+import type { BindResult, ClearanceStatus, DecisionRecord, Goal, LastSeenRecord, ManeuverMenu, Mode, OwnState, StereoObject } from './types.ts';
 
 export interface EpisodeScenario {
   id: string;
@@ -92,6 +93,19 @@ export interface EpisodeScenario {
    * declared-safe default that never silently moves the platform on a criterion nobody was asked
    * about). */
   questionMode?: 'both' | 'yaw-only' | 'range-only';
+  /** S1 (search-encoding experiment): overrides the search-mode action menu (default `SEARCH_MENU`,
+   * unchanged, for every scenario that omits this — including every existing L1-L4 ladder rung).
+   * `ladder-scenarios.ts`'s `buildL5Wrongway`/`buildL8Far` pass `SEARCH_MENU_WIDE` (maneuver.ts) so
+   * the two larger `advance_8m`/`advance_15m` translate options are offered, and so the clearance
+   * derived below (`maxTranslateDistanceM`) is checked against THIS menu's own largest move, not the
+   * unrelated default menu's 2m. */
+  searchMenu?: ManeuverMenu;
+  /** S1: position-aware coverage-memory grid config (coverage-memory.ts). Optional; falls back to
+   * `DEFAULT_COVERAGE_MEMORY_CONFIG` (18m effective range, 2m cells) for every scenario that omits
+   * this — the grid is tracked unconditionally (cheap; mirrors sector memory always being tracked
+   * regardless of which search variant a scenario actually uses), so any scenario can switch
+   * `searchVariant` to a coverage arm without also needing to opt in here. */
+  coverageMemory?: CoverageMemoryConfig;
 }
 
 export interface EpisodeDeps {
@@ -243,7 +257,8 @@ export async function runEpisode(scenario: EpisodeScenario, options: EpisodeRunO
   const mountPitchRad = scenario.world.mountPitchDeg * Math.PI / 180;
   const yawRateDegS = scenario.yawRateDegS || DEFAULT_YAW_RATE_DEG_S;
   const rangeMenu = scenario.rangeMenuKind === 'speed-hold' ? SPEED_HOLD_MENU : TRACK_RANGE_MENU;
-  const maxTranslateDistanceM = Math.max(...Object.values(SEARCH_MENU).filter(d => d.kind === 'translate').map(d => d.distanceM!));
+  const maxTranslateDistanceM = Math.max(...Object.values(scenario.searchMenu ?? SEARCH_MENU).filter(d => d.kind === 'translate').map(d => d.distanceM!));
+  const coverageMemoryConfig = scenario.coverageMemory ?? DEFAULT_COVERAGE_MEMORY_CONFIG;
   const episodeStartWallMs = Date.now();
   await mkdir(options.outputRoot, { recursive: true });
 
@@ -271,6 +286,7 @@ export async function runEpisode(scenario: EpisodeScenario, options: EpisodeRunO
     const ownStateTracker = createOwnStateTracker(options.seed, droneStart.pose.position);
     const appearanceTracker = new AppearanceTracker();
     let sectorMemory = createSectorMemory(scenario.sectorMemory, { x: droneStart.pose.position.x, y: droneStart.pose.position.y });
+    let coverageMemory = createCoverageMemory();
     let lastSeen: LastSeenRecord | null = null;
     let rateHistory: RateSample[] = [];
     let lastSectorUpdateSimMs = 0;
@@ -370,12 +386,23 @@ export async function runEpisode(scenario: EpisodeScenario, options: EpisodeRunO
       // ceiling" (a measurement artefact of this bug, not a real menu/latency limit).
       if (bind.status === 'ambiguous') rateHistory = [];
 
+      // S1: coverage memory ages/updates alongside sector memory, same elapsed-time span and same
+      // acquisition-cadence ordering (age BEFORE marking the currently-covered cells fresh) —
+      // mirrors sector-memory.ts's own `ageSectorMemory` -> `updateSectorMemory` sequencing.
+      coverageMemory = ageCoverageMemory(coverageMemory, plan.acquireAtSimMs - lastSectorUpdateSimMs, coverageMemoryConfig);
       sectorMemory = ageSectorMemory(sectorMemory, plan.acquireAtSimMs - lastSectorUpdateSimMs);
       lastSectorUpdateSimMs = plan.acquireAtSimMs;
       const noisyPosition = ownWorldPosition(ownState, scenario.world.droneInitialPosition);
       const clearanceBySector = deriveClearance(sensorResult.record.objects, maxTranslateDistanceM, ownState.headingDeg, scenario.sectorMemory);
       sectorMemory = updateSectorMemory(sectorMemory, scenario.sectorMemory, ownState.headingDeg, plan.acquireAtSimMs, { x: noisyPosition.x, y: noisyPosition.y }, clearanceBySector,
         boundCandidate ? { bearingDeg: worldBearing!, rangeM: boundCandidate.rangeM, description: scenario.goal.description } : null);
+      // S1: coverage memory is anchored to the drone's own NOISY ODOMETRY frame (never simulator
+      // truth) — `ownState.odometryDisplacementM`, not `noisyPosition` (which additionally folds in
+      // `scenario.world.droneInitialPosition`, a world-frame convenience sector-memory.ts's own
+      // clearance/candidate bookkeeping happens to want but this grid does not need: it only has to
+      // be self-consistent between the update below and every per-option predicted consequence in
+      // encoders/search.ts, which reads the SAME `ownState.odometryDisplacementM` field).
+      coverageMemory = updateCoverageMemory(coverageMemory, { x: ownState.odometryDisplacementM.x, y: ownState.odometryDisplacementM.y }, ownState.headingDeg, coverageMemoryConfig);
 
       return { acquireAtSimMs: plan.acquireAtSimMs, ownState, bind, boundCandidate, worldBearingDeg: worldBearing, renderResult, acquireWallMs, perceptionWallMs: sensorResult.wallMs, seq };
     }
@@ -403,6 +430,7 @@ export async function runEpisode(scenario: EpisodeScenario, options: EpisodeRunO
       const freshestAtDispatch = freshest;
       const lastSeenAtDispatch: LastSeenRecord | null = lastSeen;
       const sectorMemoryAtDispatch = sectorMemory;
+      const coverageMemoryAtDispatch = coverageMemory;
       const rateAtDispatch = estimateRate(rateHistory, freshestAtDispatch.acquireAtSimMs, scenario.rateWindowMs);
 
       const observationAvailableAtSimMs = perceptionBusyUntilSimMs;
@@ -468,7 +496,8 @@ export async function runEpisode(scenario: EpisodeScenario, options: EpisodeRunO
         : buildSearchRequest({
             goal: scenario.goal, ownState: predictedOwnState, targetCurrentlyVisible: freshestAtDispatch.bind.status === 'bound', memory: sectorMemoryAtDispatch, memoryConfig: scenario.sectorMemory,
             lastSeen: lastSeenAtDispatch, lastSeenTrustworthyMs: scenario.lastSeenTrustworthyMs, lastSeenStaleMs: scenario.lastSeenStaleMs, receipts, variant: scenario.searchVariant,
-            envelope: scenario.envelope, episodeDurationMs: scenario.durationMs,
+            envelope: scenario.envelope, episodeDurationMs: scenario.durationMs, menu: scenario.searchMenu,
+            coverageMemory: coverageMemoryAtDispatch, coverageMemoryConfig,
           });
       assertNoEvaluatorLeak(request);
       assertNoRankingLanguage(request);

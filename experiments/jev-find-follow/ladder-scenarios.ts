@@ -11,12 +11,13 @@
  */
 import { TARGET_CAR_DIMENSIONS } from '../jev-round3/world.ts';
 import { DEFAULT_SECTOR_MEMORY_CONFIG } from './sector-memory.ts';
-import { DEFAULT_YAW_RATE_DEG_S } from './maneuver.ts';
+import { DEFAULT_YAW_RATE_DEG_S, SEARCH_MENU_WIDE } from './maneuver.ts';
 import { DEFAULT_RATE_WINDOW_MS } from './rate-estimate.ts';
 import { offsetRangeStart, ROUND3_RIG, type Aspect, type RigConfig } from './sweep.ts';
 import type { EpisodeScenario } from './episode.ts';
 import type { EnvelopeBounds } from './types.ts';
 import type { HoverJitterConfig } from './world-bridge.ts';
+import type { SearchVariant } from './encoders/search.ts';
 
 const CAR_HALF_LENGTH_M = TARGET_CAR_DIMENSIONS[0] / 2;
 const VEHICLE_FAMILY = ['car', 'truck', 'bus'];
@@ -277,6 +278,96 @@ export function buildL4(rig: RigConfig, d0: number, envelope: MeasuredEnvelope):
     passCriteria: {
       minFollowLockFraction: 0.3, maxLongestLossMs: 20_000, maxContacts: 0, requireFirstDetectionByMs: 3_000, maxVetoedManeuvers: 0,
       minTruthCentredFraction: 0.8, minTruthInRangeBandFraction: 0.8, settlingPeriodMs: 10_000,
+    },
+    consequenceModel: 'measured-rate', rangeMenuKind: 'speed-hold', questionMode: 'both',
+  };
+}
+
+/** S1 (search-encoding experiment, `experiments/jev-find-follow/SEARCH-RESULTS.md`): "wrong way" —
+ * the target is already within normal detection range (`rangeM`, default 10m, well inside the
+ * fake-sensor-v2's own measured ~21.6m cutoff) but OUTSIDE the camera's INITIAL field of view
+ * (`offsetDeg`, degrees off the drone's start heading — positive/negative for either side; the
+ * assignment's own 60/100/140/180deg-left-and-right sweep is left to the caller, matching how every
+ * other rung in this file leaves ITS OWN sweep dimension — offset/range/seed — to the batch/sweep
+ * driver, not hardcoded here). Stationary for the first 10s, then driving slowly (1 m/s), matching
+ * the assignment's own "stationary for 10 s then driving slowly" wording. Hands over to track mode
+ * through the EXISTING code-derived mode switch (encoders/mode.ts) the moment the target binder
+ * locks on — no new hand-off logic needed, since search/track was always a code decision, never
+ * Jev's, in this engine. `searchMenu: SEARCH_MENU_WIDE` and every `searchVariant` this file's own
+ * batch driver compares here share that SAME menu (S1's "same menus... across arms" requirement).
+ *
+ * Pass rule (S1 assignment): first controller-visible detection by `requireFirstDetectionByMs`,
+ * then held (centred AND in range band) for most of the remaining episode. Declared approximation
+ * (S1's own "smallest thing" instruction — no new scoring machinery added this pass): this engine's
+ * existing truth gates (`minTruthCentredFraction`/`minTruthInRangeBandFraction`) are each evaluated
+ * INDEPENDENTLY from `settlingPeriodMs` onward, not as one joint (AND) fraction measured from the
+ * ACTUAL first-detection instant — `settlingPeriodMs` is set here to `requireFirstDetectionByMs` so
+ * the window never starts before the declared deadline, but two marginals both >=0.7 does not
+ * mathematically guarantee the joint (centred-and-in-band-simultaneously) fraction is also >=0.7.
+ * Flagged as a limit in SEARCH-RESULTS.md, not hidden. */
+export function buildL5Wrongway(rig: RigConfig, options: { offsetDeg: number; aspect?: Aspect; rangeM?: number; searchVariant?: SearchVariant; seed?: number }): EpisodeScenario {
+  const aspect = options.aspect ?? 'rear';
+  const rangeM = options.rangeM ?? 10;
+  const start = offsetRangeStart({ offsetDeg: options.offsetDeg, rangeM, aspect });
+  const envelope = envelopeFor(rig);
+  const searchVariant = options.searchVariant ?? 'coverage-consequences';
+  return {
+    id: `l5-wrongway-${rig.droneAltitudeM}m${rig.mountPitchDeg}deg-${aspect}-off${options.offsetDeg}-${searchVariant}`,
+    goal: { ...GOAL, requestedRangeM: rangeM },
+    durationMs: 40_000,
+    world: {
+      seed: options.seed ?? 9601, droneAltitudeM: rig.droneAltitudeM, mountPitchDeg: rig.mountPitchDeg, droneMaxSpeedMps: 2.5,
+      droneInitialPosition: start.droneInitialPosition, droneInitialHeadingDeg: start.droneInitialHeadingDeg,
+      carInitialPosition: start.carInitialPosition, carInitialHeadingDeg: start.carInitialHeadingDeg,
+      carPath: { kind: 'stationary-then-forward', forwardSpeedMps: 1.0, startMovingAtMs: 10_000, headingDeg: start.carInitialHeadingDeg },
+      hfovDeg: rig.hfovDeg, physicsDtMs: 20, hoverJitter: DEFAULT_HOVER_JITTER,
+    },
+    ...commonFields(envelope),
+    searchVariant, searchMenu: SEARCH_MENU_WIDE,
+    rangeToleranceM: 1, centralBandFraction: 0.3,
+    passCriteria: {
+      minFollowLockFraction: 0.15, maxLongestLossMs: 20_000, maxContacts: 0, requireFirstDetectionByMs: 20_000, maxVetoedManeuvers: 0,
+      minTruthCentredFraction: 0.7, minTruthInRangeBandFraction: 0.7, settlingPeriodMs: 20_000,
+    },
+    consequenceModel: 'measured-rate', rangeMenuKind: 'speed-hold', questionMode: 'both',
+  };
+}
+
+/** S1: "find it from a long distance" — the target starts BEYOND the fake-sensor-v2's own measured
+ * hard detection-range cutoff (~21.6m, FAILURES.md/WORKLOG.md), 30-45m away (`rangeM`, default 38),
+ * at a declared bearing offset (any value — again left to the caller). Stationary for 10s then
+ * driving slowly, same as `buildL5Wrongway`. This is deliberately where `coverage-consequences` has
+ * to do real work: sector memory has NOTHING local to a translate option (coverage-memory.ts's own
+ * module docstring; FAILURES.md's "6/24" translate-along-open-corridor finding) and there is no
+ * last-seen record at all until the target first enters range — only a position-aware
+ * `new_area_seen_m2` consequence can tell a policy that `advance_15m` is the action actually making
+ * progress here. Envelope radius raised to 90m (kept LOCAL to this function, not a change to the
+ * shared `envelopeFor` helper every other rung still uses at its own default 60m) since closing
+ * 20-30m of open ground is the whole point of the rung. `goal.requestedRangeM` is the FOLLOW
+ * distance once bound (10m, independent of the much larger INITIAL `rangeM` separation). */
+export function buildL8Far(rig: RigConfig, options: { offsetDeg: number; aspect?: Aspect; rangeM?: number; searchVariant?: SearchVariant; seed?: number }): EpisodeScenario {
+  const aspect = options.aspect ?? 'rear';
+  const rangeM = options.rangeM ?? 38;
+  const start = offsetRangeStart({ offsetDeg: options.offsetDeg, rangeM, aspect });
+  const envelope: EnvelopeBounds = { minAltitudeM: round1(Math.max(0.2, rig.droneAltitudeM - 1.5)), maxAltitudeM: round1(rig.droneAltitudeM + 4), maxRadiusFromOriginM: 90 };
+  const searchVariant = options.searchVariant ?? 'coverage-consequences';
+  return {
+    id: `l8-far-${rig.droneAltitudeM}m${rig.mountPitchDeg}deg-${aspect}-off${options.offsetDeg}-r${rangeM}-${searchVariant}`,
+    goal: { ...GOAL, requestedRangeM: 10 },
+    durationMs: 80_000,
+    world: {
+      seed: options.seed ?? 9701, droneAltitudeM: rig.droneAltitudeM, mountPitchDeg: rig.mountPitchDeg, droneMaxSpeedMps: 2.5,
+      droneInitialPosition: start.droneInitialPosition, droneInitialHeadingDeg: start.droneInitialHeadingDeg,
+      carInitialPosition: start.carInitialPosition, carInitialHeadingDeg: start.carInitialHeadingDeg,
+      carPath: { kind: 'stationary-then-forward', forwardSpeedMps: 1.0, startMovingAtMs: 10_000, headingDeg: start.carInitialHeadingDeg },
+      hfovDeg: rig.hfovDeg, physicsDtMs: 20, hoverJitter: DEFAULT_HOVER_JITTER,
+    },
+    ...commonFields(envelope),
+    searchVariant, searchMenu: SEARCH_MENU_WIDE,
+    rangeToleranceM: 1, centralBandFraction: 0.3,
+    passCriteria: {
+      minFollowLockFraction: 0.1, maxLongestLossMs: 30_000, maxContacts: 0, requireFirstDetectionByMs: 45_000, maxVetoedManeuvers: 0,
+      minTruthCentredFraction: 0.7, minTruthInRangeBandFraction: 0.7, settlingPeriodMs: 45_000,
     },
     consequenceModel: 'measured-rate', rangeMenuKind: 'speed-hold', questionMode: 'both',
   };
